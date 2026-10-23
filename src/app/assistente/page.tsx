@@ -5,7 +5,7 @@ import { parseExclusionLines, parseIdealClient } from "@/lib/audience";
 import { describeRule } from "@/lib/followupPolicy";
 import { parseWritingStyle, summarizeStyle } from "@/lib/writingStyle";
 import { loadSuggestions } from "@/lib/styleSuggestions";
-import { EMPTY_VOICE, parseVoiceSettings } from "@/lib/voice/settings";
+import { EMPTY_VOICE, isOwnVoice, parseVoiceSettings } from "@/lib/voice/settings";
 import { fishConfigured } from "@/lib/voice/fish";
 import { elevenConfigured } from "@/lib/voice/elevenlabs";
 import { approvalStats } from "@/lib/outbox";
@@ -67,7 +67,7 @@ export default async function AssistantPage() {
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" } });
   const style = parseWritingStyle(settings.writingStyle);
   const voice = parseVoiceSettings(settings.voiceSettings);
-  const picked = voice.provider === "elevenlabs" && voice.voiceId ? voice : null;
+  const picked = !isOwnVoice(voice) && voice.voiceId ? voice : null;
   const [suggestions, stats, waiting, reviewingRaw, voiceUse] = await Promise.all([
     // As sugestões são um extra: se falharem, a tela abre do mesmo jeito.
     loadSuggestions(style).catch(() => []),
@@ -115,9 +115,9 @@ export default async function AssistantPage() {
       </div>
 
       <VoiceTabs
-        initial={voice.provider === "fish" ? "mine" : "ready"}
+        initial={isOwnVoice(voice) ? "mine" : "ready"}
         ready={<VoicePicker currentId={picked?.voiceId ?? null} currentName={picked?.voiceName ?? null} configured={elevenConfigured()} />}
-        mine={<VoiceStudio ownerName={settings.ownerName?.trim() || null} voice={voice.provider === "fish" ? voice : EMPTY_VOICE} configured={fishConfigured()} />}
+        mine={<VoiceStudio ownerName={settings.ownerName?.trim() || null} voice={isOwnVoice(voice) ? voice : EMPTY_VOICE} configured={fishConfigured() || elevenConfigured()} />}
       />
 
       <section id="alcance" aria-labelledby="h-alcance" style={{ scrollMarginTop: 24 }}>

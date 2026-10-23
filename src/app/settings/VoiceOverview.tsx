@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { setAudioMode } from "@/app/voz/actions";
-import { AUDIO_MODES, hasVoice, type AudioMode, type VoiceSettings } from "@/lib/voice/settings";
+import { AUDIO_MODES, hasVoice, isOwnVoice, type AudioMode, type VoiceSettings } from "@/lib/voice/settings";
 
 // "Quando mandar áudio" em Assistente: a voz do usuário e a escolha PESSOAL de quando o assistente responde em áudio.
 export function VoiceOverview({ voice, configured, notice }: { voice: VoiceSettings; configured: boolean; notice?: { level: string; title: string; sub: string } | null }) {
@@ -46,7 +46,7 @@ export function VoiceOverview({ voice, configured, notice }: { voice: VoiceSetti
       ) : (
         <div className="row wrap" style={{ gap: 8, justifyContent: "space-between" }}>
           <span>
-            <b>{voice.voiceName ?? "Minha voz"}</b> <span className="small muted">· {voice.provider === "elevenlabs" ? "voz pronta" : "sua voz gravada"}</span>
+            <b>{voice.voiceName ?? "Minha voz"}</b> <span className="small muted">· {isOwnVoice(voice) ? "sua voz gravada" : "voz pronta"}</span>
           </span>
           <a href="#voz" className="btn-line btn-sm">
             Trocar a voz

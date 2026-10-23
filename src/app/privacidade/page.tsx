@@ -17,8 +17,8 @@ export default function PrivacyPage() {
 
       <h2>1. Quem somos</h2>
       <p>
-        A Central Dors é um sistema operado por Lucas Prestes (LP Sistemas) que ajuda profissionais e empresas (os &ldquo;clientes&rdquo;) a conversar com seus
-        contatos comerciais e marcar reuniões. Contato sobre privacidade: <a href="mailto:eu@lucasprestes.com">eu@lucasprestes.com</a>.
+        A Central Dors é um sistema operado pela DOR$ (dorsplanejamento.com.br) que ajuda profissionais e empresas (os &ldquo;clientes&rdquo;) a conversar com seus
+        contatos comerciais e marcar reuniões. Contato sobre privacidade: <a href="mailto:administrativo@dorsplanejamento.com.br">administrativo@dorsplanejamento.com.br</a>.
       </p>
 
       <h2>2. Quais dados tratamos</h2>
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
       <h2>5. Mensagens de voz e a sua voz</h2>
       <p>
         Se você ativar as mensagens de voz, grava a sua própria voz na tela &ldquo;Minha voz&rdquo;, depois de confirmar que a voz é sua e autorizar o uso. A
-        gravação é enviada ao serviço de voz (Fish Audio) somente para criar uma voz digital, e o assistente passa a poder enviar áudios com ela, em seu
+        gravação é enviada ao serviço de voz (ElevenLabs) somente para criar uma voz digital, e o assistente passa a poder enviar áudios com ela, em seu
         nome, nas conversas de WhatsApp que você permitir. Você escolhe quando o assistente responde em áudio e pode apagar a voz a qualquer momento: ela é
         removida do serviço e das configurações. Os áudios gerados ficam disponíveis por um endereço temporário para o WhatsApp baixá-los e são apagados
         em até 24 horas.
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
       <h2>8. Seus direitos (LGPD)</h2>
       <p>
         Você (cliente ou contato) pode pedir acesso, correção, portabilidade ou exclusão dos seus dados, e revogar consentimentos, escrevendo para{" "}
-        <a href="mailto:eu@lucasprestes.com">eu@lucasprestes.com</a>. Os contatos comerciais são tratados pelo cliente que os prospecta (controlador); nós
+        <a href="mailto:administrativo@dorsplanejamento.com.br">administrativo@dorsplanejamento.com.br</a>. Os contatos comerciais são tratados pelo cliente que os prospecta (controlador); nós
         atuamos como operadores, seguindo as instruções dele.
       </p>
 

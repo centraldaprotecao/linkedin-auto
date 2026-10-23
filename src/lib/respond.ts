@@ -9,7 +9,7 @@ import { deliver, supersedeDrafts } from "@/lib/outbox";
 import { loadCalendarContext } from "@/lib/scheduling";
 import { formatSlot, slotIso } from "@/lib/slots";
 import type { Lead } from "@prisma/client";
-import { decideAudio, parseVoiceSettings } from "@/lib/voice/settings";
+import { decideAudio, isOwnVoice, parseVoiceSettings } from "@/lib/voice/settings";
 import { voiceServiceReady } from "@/lib/voice/engine";
 import { publicBaseUrl } from "@/lib/voice/outgoingAudio";
 
@@ -90,7 +90,7 @@ async function handleIncomingMessageImpl(lead: Lead, identityId: string | null) 
   // Com uma voz pronta da lista (ElevenLabs), pode falar.
   const voice = parseVoiceSettings(settings.voiceSettings);
   const wantsAudio =
-    !(settings.assistantName?.trim() && voice.provider === "fish") &&
+    !(settings.assistantName?.trim() && isOwnVoice(voice)) &&
     decideAudio({ settings: voice, channel, inboundKind: lastInbound?.mediaKind, serviceReady: voiceServiceReady(voice) && Boolean(publicBaseUrl()) });
 
   let decision;

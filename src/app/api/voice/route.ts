@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { createVoice, deleteVoice, fishConfigured, VoiceError } from "@/lib/voice/fish";
-import { parseVoiceSettings } from "@/lib/voice/settings";
+import { createVoice, fishConfigured, VoiceError } from "@/lib/voice/fish";
+import { createVoiceEleven, elevenConfigured } from "@/lib/voice/elevenlabs";
+import { removeVoice } from "@/lib/voice/engine";
+import { isOwnVoice, parseVoiceSettings } from "@/lib/voice/settings";
 import { isWav, wavSeconds } from "@/lib/voice/wav";
 import type { Prisma } from "@prisma/client";
 
@@ -20,7 +22,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Sessão expirada. Entre de novo." }, { status: 401 });
   }
-  if (!fishConfigured()) return NextResponse.json({ error: "O serviço de voz ainda não foi configurado." }, { status: 503 });
+  // A voz gravada nasce na ElevenLabs; o Fish só entra em instalações antigas que ainda não têm a chave dela.
+  const useEleven = elevenConfigured();
+  if (!useEleven && !fishConfigured()) return NextResponse.json({ error: "O serviço de voz ainda não foi configurado." }, { status: 503 });
 
   let form: FormData;
   try {
@@ -47,16 +51,17 @@ export async function POST(req: Request) {
 
   let created: { id: string };
   try {
-    created = await createVoice(`Voz de ${name}`, [{ bytes, filename: "minha-voz.wav", mime: "audio/wav" }]);
+    const samples = [{ bytes, filename: "minha-voz.wav", mime: "audio/wav" }];
+    created = useEleven ? await createVoiceEleven(`Voz de ${name}`, samples) : await createVoice(`Voz de ${name}`, samples);
   } catch (err) {
     const msg = err instanceof VoiceError ? err.message : "Não consegui criar a voz agora.";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 
   const now = new Date().toISOString();
-  const next = { mode: previous.mode, provider: "fish" as const, voiceId: created.id, voiceName: `Voz de ${name}`, consentAt: now, createdAt: now };
+  const next = { mode: previous.mode, provider: useEleven ? ("elevenlabs" as const) : ("fish" as const), voiceId: created.id, voiceName: `Voz de ${name}`, cloned: useEleven, consentAt: now, createdAt: now };
   await prisma.settings.update({ where: { id: "singleton" }, data: { voiceSettings: next as unknown as Prisma.InputJsonValue } });
   // Voz anterior (regravação): some do serviço, melhor esforço.
-  if (previous.provider === "fish" && previous.voiceId && previous.voiceId !== created.id) await deleteVoice(previous.voiceId).catch(() => {});
+  if (isOwnVoice(previous) && previous.voiceId && previous.voiceId !== created.id) await removeVoice(previous).catch(() => {});
   return NextResponse.json({ ok: true, voiceName: next.voiceName });
 }

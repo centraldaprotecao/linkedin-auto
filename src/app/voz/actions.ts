@@ -9,7 +9,7 @@ import { listVoices, synthesizeEleven, type CatalogVoice } from "@/lib/voice/ele
 import { storeOutgoingAudio } from "@/lib/voice/outgoingAudio";
 import { removeVoice } from "@/lib/voice/engine";
 import { ensureAudio } from "@/lib/voice/send";
-import { EMPTY_VOICE, parseVoiceSettings, type AudioMode } from "@/lib/voice/settings";
+import { EMPTY_VOICE, isOwnVoice, parseVoiceSettings, type AudioMode } from "@/lib/voice/settings";
 
 async function current() {
   const s = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" }, select: { voiceSettings: true, ownerName: true, assistantName: true } });
@@ -38,7 +38,7 @@ export async function previewMyVoice(): Promise<{ url?: string; error?: string }
   await requireSession();
   const { ownerName, voice, assistantName } = await current();
   // Voz pronta: quem fala é a assistente, não o dono da conta.
-  const who = voice.provider === "elevenlabs" ? assistantName : ownerName;
+  const who = isOwnVoice(voice) ? ownerName : assistantName;
   const text = `Oi, tudo bem? ${who ? `Aqui é ${who}. ` : ""}Recebi a sua mensagem e já te respondo com calma. Qualquer coisa, é só me chamar.`;
   try {
     const { token } = await ensureAudio(text);
@@ -91,8 +91,8 @@ export async function chooseCatalogVoice(voiceId: string, voiceName: string): Pr
   const id = voiceId.trim().slice(0, 80);
   if (!id) return { error: "Escolha uma voz." };
   const { voice } = await current();
-  if (voice.provider === "fish" && voice.voiceId) await removeVoice(voice).catch(() => {});
+  if (isOwnVoice(voice) && voice.voiceId) await removeVoice(voice).catch(() => {});
   const now = new Date().toISOString();
-  await save({ mode: voice.mode, provider: "elevenlabs", voiceId: id, voiceName: voiceName.trim().slice(0, 80) || null, consentAt: now, createdAt: now });
+  await save({ mode: voice.mode, provider: "elevenlabs", voiceId: id, voiceName: voiceName.trim().slice(0, 80) || null, cloned: false, consentAt: now, createdAt: now });
   return {};
 }

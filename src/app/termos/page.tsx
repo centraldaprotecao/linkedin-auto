@@ -16,7 +16,7 @@ export default function TermsPage() {
       <h2>1. O serviço</h2>
       <p>
         A Central Dors ajuda o cliente a conversar com seus contatos comerciais (LinkedIn, e-mail e WhatsApp), a fazer follow-up e a marcar reuniões
-        na agenda do Google. O sistema é operado por Lucas Prestes (LP Sistemas).
+        na agenda do Google. O sistema é operado pela DOR$ (dorsplanejamento.com.br).
       </p>
 
       <h2>2. Responsabilidades do cliente</h2>
@@ -45,7 +45,7 @@ export default function TermsPage() {
 
       <h2>6. Contato</h2>
       <p>
-        <a href="mailto:eu@lucasprestes.com">eu@lucasprestes.com</a>
+        <a href="mailto:administrativo@dorsplanejamento.com.br">administrativo@dorsplanejamento.com.br</a>
       </p>
 
       <p style={{ marginTop: 32 }}>

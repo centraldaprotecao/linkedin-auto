@@ -1,6 +1,6 @@
 // Cliente da ElevenLabs: lista de vozes prontas (para o usuário escolher) e voz falada. Documentação oficial:
 // GET /v2/voices (cabeçalho xi-api-key) e POST /v1/text-to-speech/{voice_id}. A chave fica só no servidor.
-import { VoiceError } from "@/lib/voice/fish";
+import { VoiceError, type VoiceSample } from "@/lib/voice/fish";
 
 const BASE = "https://api.elevenlabs.io";
 // Modelos de fala, na ordem de tentativa. eleven_v4 é o de maior qualidade e fala português; se a conta (plano) não puder
@@ -25,7 +25,12 @@ async function call(path: string, init: RequestInit = {}): Promise<Response> {
   } catch {
     throw new VoiceError("Não consegui falar com o serviço de voz agora. Tente de novo em instantes.");
   }
-  if (res.status === 401) throw new VoiceError("O serviço de voz recusou a chave. Confira a configuração.", 401);
+  if (res.status === 401) {
+    // Plano sem clonagem também responde 401, mas com o motivo no corpo.
+    const detail = await res.text().catch(() => "");
+    if (/clon/i.test(detail)) throw new VoiceError("O plano da conta de voz não inclui gravar a própria voz. É preciso um plano pago (a partir do Starter).", 403);
+    throw new VoiceError("O serviço de voz recusou a chave. Confira a configuração.", 401);
+  }
   if (res.status === 402 || res.status === 403) throw new VoiceError("A conta do serviço de voz não permite isto (limite do plano ou voz indisponível nele).", res.status);
   if (res.status === 429) throw new VoiceError("O serviço de voz está ocupado ou o limite do mês acabou. Tente de novo em instantes.", 429);
   if (!res.ok) {
@@ -98,4 +103,23 @@ export async function synthesizeEleven(text: string, voiceId: string): Promise<{
   const bytes = Buffer.from(await res.arrayBuffer());
   if (bytes.length < 500) throw new VoiceError("O serviço de voz devolveu um áudio vazio.");
   return { bytes, mime: "audio/mpeg" };
+}
+
+// Cria a voz do usuário a partir da gravação dele (clone instantâneo): POST /v1/voices/add (multipart: name, files).
+// Exige plano pago da ElevenLabs. Devolve o id da voz.
+export async function createVoiceEleven(title: string, samples: VoiceSample[]): Promise<{ id: string }> {
+  if (samples.length === 0) throw new VoiceError("Falta a gravação da voz.");
+  const form = new FormData();
+  form.set("name", title.slice(0, 80));
+  form.set("remove_background_noise", "true");
+  for (const s of samples.slice(0, 20)) form.append("files", new Blob([s.bytes as BlobPart], { type: s.mime }), s.filename);
+  const res = await call("/v1/voices/add", { method: "POST", body: form });
+  const data = (await res.json().catch(() => null)) as { voice_id?: string } | null;
+  if (!data?.voice_id) throw new VoiceError("O serviço de voz não devolveu a voz criada.");
+  return { id: data.voice_id };
+}
+
+// Apaga a voz gravada pelo usuário (as vozes prontas da lista nunca passam por aqui).
+export async function deleteVoiceEleven(voiceId: string): Promise<void> {
+  await call(`/v1/voices/${encodeURIComponent(voiceId)}`, { method: "DELETE" });
 }

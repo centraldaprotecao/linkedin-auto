@@ -53,7 +53,7 @@ export default function AboutPage() {
       </ul>
 
       <p style={{ marginTop: 32 }}>
-        Já é cliente? <Link href="/login">Entrar no painel</Link>. Contato: <a href="mailto:eu@lucasprestes.com">eu@lucasprestes.com</a>.
+        Já é cliente? <Link href="/login">Entrar no painel</Link>. Contato: <a href="mailto:administrativo@dorsplanejamento.com.br">administrativo@dorsplanejamento.com.br</a>.
       </p>
     </main>
   );

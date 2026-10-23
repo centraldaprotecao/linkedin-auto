@@ -5,7 +5,7 @@ import type { MessageChannel } from "@prisma/client";
 
 export type AudioMode = "off" | "mirror" | "always";
 
-// "fish" = a voz clonada do usuário; "elevenlabs" = uma voz pronta escolhida de uma lista.
+// Quem fala: "fish" (vozes gravadas antigas) ou "elevenlabs" (voz pronta da lista OU a voz gravada pelo usuário, ver "cloned").
 export type VoiceProvider = "fish" | "elevenlabs";
 
 export interface VoiceSettings {
@@ -14,12 +14,14 @@ export interface VoiceSettings {
   // Id da voz no provedor (não é segredo).
   voiceId: string | null;
   voiceName: string | null;
+  // Voz gravada pelo próprio usuário na ElevenLabs (e não uma voz pronta da lista). Vozes "fish" são sempre dele.
+  cloned: boolean;
   // Quando o usuário confirmou que a voz é dele e autorizou o uso.
   consentAt: string | null;
   createdAt: string | null;
 }
 
-export const EMPTY_VOICE: VoiceSettings = { mode: "off", provider: "fish", voiceId: null, voiceName: null, consentAt: null, createdAt: null };
+export const EMPTY_VOICE: VoiceSettings = { mode: "off", provider: "fish", voiceId: null, voiceName: null, cloned: false, consentAt: null, createdAt: null };
 
 export const AUDIO_MODES: { value: AudioMode; label: string; hint: string }[] = [
   { value: "off", label: "Só texto", hint: "O assistente nunca manda áudio." },
@@ -49,9 +51,15 @@ export function parseVoiceSettings(raw: unknown): VoiceSettings {
     provider: o.provider === "elevenlabs" ? "elevenlabs" : "fish",
     voiceId,
     voiceName: str(o.voiceName, 80),
+    cloned: o.provider === "elevenlabs" && o.cloned === true,
     consentAt: date(o.consentAt),
     createdAt: date(o.createdAt),
   };
+}
+
+// A voz é a do próprio usuário (gravada por ele), e não uma voz pronta da lista.
+export function isOwnVoice(s: Pick<VoiceSettings, "provider" | "cloned">): boolean {
+  return s.provider === "fish" || s.cloned;
 }
 
 export function hasVoice(s: VoiceSettings): boolean {
@@ -61,7 +69,7 @@ export function hasVoice(s: VoiceSettings): boolean {
 export function summarizeVoice(s: VoiceSettings): string {
   if (!hasVoice(s)) return "Nenhuma voz escolhida";
   const mode = AUDIO_MODES.find((m) => m.value === s.mode)?.label ?? "";
-  return `${s.provider === "elevenlabs" ? `Voz ${s.voiceName ?? "escolhida"}` : "Sua voz está pronta"} · ${mode}`;
+  return `${isOwnVoice(s) ? "Sua voz está pronta" : `Voz ${s.voiceName ?? "escolhida"}`} · ${mode}`;
 }
 
 // Esta resposta sai em áudio? Só no WhatsApp, só com voz criada e autorizada e o serviço de voz

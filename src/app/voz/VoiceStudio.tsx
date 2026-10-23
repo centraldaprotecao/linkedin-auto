@@ -155,7 +155,7 @@ export function VoiceStudio({ ownerName, voice, configured }: { ownerName: strin
   if (!configured) {
     return (
       <p className="note note-warn">
-        O serviço de voz ainda não foi configurado neste sistema (falta a chave do Fish Audio no servidor). Peça ao suporte para ativar.
+        O serviço de voz ainda não foi configurado neste sistema (falta a chave da ElevenLabs no servidor). Peça ao suporte para ativar.
       </p>
     );
   }
@@ -199,7 +199,7 @@ export function VoiceStudio({ ownerName, voice, configured }: { ownerName: strin
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 4 }} />
         <span className="small">
           Declaro que <b>esta é a minha própria voz</b> e autorizo o uso dela para criar uma voz digital que o assistente usará para enviar mensagens de voz em meu nome, nas conversas de
-          WhatsApp que eu permitir. A gravação é enviada ao serviço de voz (Fish Audio) só para criar a voz, e eu posso apagá-la a qualquer momento nesta tela.
+          WhatsApp que eu permitir. A gravação é enviada ao serviço de voz (ElevenLabs) só para criar a voz, e eu posso apagá-la a qualquer momento nesta tela.
         </span>
       </label>
 
