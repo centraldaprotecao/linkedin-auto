@@ -26,7 +26,9 @@ export const maxDuration = 120;
 // Multi-cliente: o robô percorre os clientes ativos, um de cada vez, cada um no próprio contexto de dados.
 // Um cliente com problema não pode parar os outros. ?client=<id> roda só um (teste e ensaio).
 export async function GET(request: Request) {
-  if (!isValidBearer(request.headers.get("authorization"), process.env.CRON_SECRET)) {
+  // O agendador usa CRON_SECRET; o backoffice ("rodar agora" de um cliente) usa OPS_SECRET.
+  const auth = request.headers.get("authorization");
+  if (!isValidBearer(auth, process.env.CRON_SECRET) && !isValidBearer(auth, process.env.OPS_SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const only = new URL(request.url).searchParams.get("client");
@@ -145,5 +147,5 @@ async function pollClient() {
     linkedin: linkedinError,
   }).catch((err) => console.error("Falha ao registrar o resultado da rodada", err));
 
-  return NextResponse.json({ summary, email, whatsapp, linkedin: identityId ? "conectado" : "não conectado", updatedLeads, newIncomingMessages, fallbacks, failed, proactive });
+  return { summary, email, whatsapp, linkedin: identityId ? "conectado" : "não conectado", updatedLeads, newIncomingMessages, fallbacks, failed, proactive };
 }

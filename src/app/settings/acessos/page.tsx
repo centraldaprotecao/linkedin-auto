@@ -15,7 +15,6 @@ export default async function AccessPage() {
   if (!(await getSession())) redirect("/login");
   // O acesso do suporte não aparece para a equipe do cliente.
   const users = (await prisma.panelUser.findMany({ orderBy: { createdAt: "asc" } })).filter((u) => !OWNER_LOGINS.includes(u.login));
-  const withPassword = users.filter((u) => u.passwordHash).length;
 
   return (
     <main className="page">
@@ -26,9 +25,7 @@ export default async function AccessPage() {
         <div>
           <h1 className="t-title">Acessos ao painel</h1>
           <p className="t-sub">
-            {withPassword === 0
-              ? "Hoje todos entram com a senha única. Quando a primeira pessoa escolher a própria senha, a senha única deixa de valer."
-              : "A senha única já não vale: cada pessoa entra com o próprio login e a própria senha."}
+            Cada pessoa entra com o próprio login e a própria senha.
           </p>
         </div>
       </header>
