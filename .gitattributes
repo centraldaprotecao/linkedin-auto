@@ -1,2 +1,4 @@
 # O patch do Deskcomm nao pode ter o fim de linha convertido (git apply)
 docs/deskcomm/*.patch -text
+# Scripts de servidor precisam de quebra de linha Unix, senão não rodam na VPS Linux.
+*.sh text eol=lf
