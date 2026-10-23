@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { audit } from "@/lib/audit";
 import { readPlan } from "@/lib/forms";
 import { requireAdmin } from "@/lib/session";
-import { addUser, runNow, setUserActive, updateClient, userInviteLink } from "@/lib/sistema";
+import { addMailbox, addUser, removeWhatsappKey, runNow, setMailbox, setUserActive, setWhatsappKey, testMailbox, updateClient, userInviteLink } from "@/lib/sistema";
 
 export type FormState = { error?: string; ok?: string; link?: string; for?: string } | undefined;
 
@@ -66,4 +66,60 @@ export async function runNowAction(id: string, clientName: string, ...rest: [For
   await audit(admin, "Rodou o robô agora", clientName);
   const res = r.data.results[id] as { error?: string } | undefined;
   return res?.error ? { error: `A rodada terminou com erro: ${res.error}` } : { ok: "Rodada concluída." };
+}
+
+// ---- WhatsApp ----
+export async function saveWhatsappKeyAction(id: string, clientName: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const token = String(form.get("token") ?? "").trim();
+  if (!token) return { error: "Cole a chave do CRM de WhatsApp (começa com dsk_)." };
+  const r = await setWhatsappKey(id, token);
+  if (!r.ok) return { error: r.error };
+  await audit(admin, "Gravou a chave do WhatsApp do cliente", clientName);
+  revalidatePath(`/clientes/${id}`);
+  return { ok: "Chave testada e guardada. Agora o cliente conecta o número lendo o QR Code em Ajustes › WhatsApp." };
+}
+
+export async function removeWhatsappKeyAction(id: string, clientName: string): Promise<void> {
+  const admin = await requireAdmin();
+  const r = await removeWhatsappKey(id);
+  if (!r.ok) throw new Error(r.error);
+  await audit(admin, "Removeu a chave do WhatsApp do cliente", clientName);
+  revalidatePath(`/clientes/${id}`);
+}
+
+// ---- Caixas de e-mail ----
+export async function addMailboxAction(id: string, clientName: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const num = (k: string) => Number(String(form.get(k) ?? "").trim());
+  const address = String(form.get("address") ?? "").trim();
+  const r = await addMailbox(id, {
+    address,
+    password: String(form.get("password") ?? ""),
+    displayName: String(form.get("displayName") ?? "").trim(),
+    dailyLimit: num("dailyLimit") || 30,
+    smtpHost: String(form.get("smtpHost") ?? ""),
+    smtpPort: num("smtpPort"),
+    imapHost: String(form.get("imapHost") ?? ""),
+    imapPort: num("imapPort"),
+  });
+  if (!r.ok) return { error: r.error };
+  await audit(admin, "Cadastrou uma caixa de envio", clientName, address.toLowerCase());
+  revalidatePath(`/clientes/${id}`);
+  return { ok: "Caixa conferida (envio e leitura) e cadastrada. Ela começa o aquecimento hoje." };
+}
+
+export async function testMailboxAction(id: string, mailboxId: string, _prev: FormState): Promise<FormState> {
+  await requireAdmin();
+  const r = await testMailbox(id, mailboxId);
+  revalidatePath(`/clientes/${id}`);
+  return r.ok ? { ok: "Conexão da caixa funcionando." } : { error: r.error };
+}
+
+export async function setMailboxAction(id: string, clientName: string, mailboxId: string, address: string, action: "pause" | "resume" | "retire"): Promise<void> {
+  const admin = await requireAdmin();
+  const r = await setMailbox(id, mailboxId, action);
+  if (!r.ok) throw new Error(r.error);
+  await audit(admin, action === "pause" ? "Pausou uma caixa de envio" : action === "resume" ? "Reativou uma caixa de envio" : "Aposentou uma caixa de envio", clientName, address);
+  revalidatePath(`/clientes/${id}`);
 }

@@ -5,14 +5,12 @@ import { userBlockedByPlan } from "@/lib/plan";
 import { headers } from "next/headers";
 import { prisma, prismaSystem } from "@/lib/prisma";
 import { getSession, requireSession } from "@/lib/session";
-import { OWNER_LOGINS, createInviteToken, normalizeLogin } from "@/lib/panelUsers";
+import { createInviteToken, normalizeLogin } from "@/lib/panelUsers";
 
-// O acesso do suporte e o da própria pessoa não podem ser desativados por aqui.
+// A pessoa precisa ser do próprio cliente (o filtro por cliente já garante isso na busca).
 async function manageable(id: string): Promise<{ error: string } | null> {
-  const user = await prisma.panelUser.findUnique({ where: { id }, select: { login: true } });
-  if (!user) return { error: "Pessoa não encontrada." };
-  if (OWNER_LOGINS.includes(user.login)) return { error: "Este acesso é do suporte e não pode ser alterado." };
-  return null;
+  const user = await prisma.panelUser.findUnique({ where: { id }, select: { id: true } });
+  return user ? null : { error: "Pessoa não encontrada." };
 }
 
 export async function addPanelUser(data: { name: string; login: string }): Promise<{ error?: string }> {
@@ -21,7 +19,7 @@ export async function addPanelUser(data: { name: string; login: string }): Promi
   if (!name) return { error: "Informe o nome da pessoa." };
   const login = normalizeLogin(data.login || name.split(/\s+/)[0]);
   if (login.length < 2 || login.length > 40) return { error: "O login precisa ter de 2 a 40 letras ou números." };
-  if (OWNER_LOGINS.includes(login) || (await prismaSystem.panelUser.findUnique({ where: { login }, select: { id: true } }))) {
+  if (await prismaSystem.panelUser.findUnique({ where: { login }, select: { id: true } })) {
     return { error: `O login "${login}" já está em uso. Escolha outro.` };
   }
   const blocked = await userBlockedByPlan();

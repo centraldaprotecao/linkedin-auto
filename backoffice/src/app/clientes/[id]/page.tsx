@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { StatusBadge } from "@/components/Badges";
-import { clientStatus, getClient, listUsers } from "@/lib/sistema";
+import { clientStatus, getClient, getWhatsapp, listMailboxes, listUsers } from "@/lib/sistema";
+import { MailboxesPanel, WhatsappPanel } from "./Integrations";
 import { ClientForm, RunNowButton, StatusButton, UsersPanel } from "./Panels";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,17 @@ async function Health({ id }: { id: string }) {
       )}
     </>
   );
+}
+
+// WhatsApp e caixas pedem coisas ao sistema (e o WhatsApp pergunta ao CRM): carregam à parte, sem segurar a página.
+async function WhatsappSection({ id, name }: { id: string; name: string }) {
+  const r = await getWhatsapp(id);
+  return r.ok ? <WhatsappPanel clientId={id} clientName={name} wa={r.data} /> : <p className="notice err" role="alert">WhatsApp: {r.error}</p>;
+}
+
+async function MailboxesSection({ id, name, planLimit }: { id: string; name: string; planLimit: number | null | undefined }) {
+  const r = await listMailboxes(id);
+  return r.ok ? <MailboxesPanel clientId={id} clientName={name} mailboxes={r.data.mailboxes} planLimit={planLimit} /> : <p className="notice err" role="alert">Caixas: {r.error}</p>;
 }
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
@@ -100,6 +112,15 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         <h2>Saúde</h2>
         <Suspense fallback={<p className="muted">Verificando…</p>}>
           <Health id={client.id} />
+        </Suspense>
+      </div>
+
+      <div className="grid">
+        <Suspense fallback={<p className="muted">Carregando o WhatsApp…</p>}>
+          <WhatsappSection id={client.id} name={client.name} />
+        </Suspense>
+        <Suspense fallback={<p className="muted">Carregando as caixas…</p>}>
+          <MailboxesSection id={client.id} name={client.name} planLimit={client.plan?.mailboxes} />
         </Suspense>
       </div>
 

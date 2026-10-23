@@ -65,7 +65,7 @@ export async function GET(request: Request) {
 
 async function pollClient() {
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" } });
-  // Registra que o agendador chamou (a central local usa isto para saber se o robô parou).
+  // Registra que o agendador chamou (o backoffice usa isto para saber se o robô parou).
   await prisma.settings.update({ where: { id: "singleton" }, data: { lastRobotRunAt: new Date() } }).catch((err) => console.error("Falha ao registrar a rodada do robô", err));
   // Responder pode ser a qualquer hora (opção do admin); INICIAR conversa
   // (abertura, retomada) continua preso ao horário, em runProactive.

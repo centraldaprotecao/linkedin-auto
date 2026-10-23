@@ -25,12 +25,14 @@ Baseado no plano arquivado em `docs/arquivo/` (DEC-T1 a T4 seguem valendo).
 - [x] WU M.6 Rotas `/api/ops/*` para o backoffice
 - [x] WU M.7 Migração SQL que leva tudo ao cliente 1 (testada duas vezes com dados de teste e com uma cópia do banco de desenvolvimento). Como não há dado real, a DOR$ começa de banco novo e esta migração só serve a bancos que já tenham dados
 - [x] WU M.8 Esquemas separados no mesmo Postgres (`DATABASE_SCHEMA`, `BACKOFFICE_DB_SCHEMA`), conexão direta para migrar (`DIRECT_URL`), robô por cliente em chamadas paralelas
-- [x] WU M.9 Exportar e importar o conteúdo de configuração (`scripts/exportar-conteudo.mjs`, `scripts/importar-conteudo.ts`)
+- [x] WU M.9 Exportar e importar o conteúdo de configuração (`scripts/exportar-conteudo.mjs`, `scripts/importar-conteudo.ts`). Exportado em 2026-10-23 (`entrega/conteudo-dors.json`, fora do git, sem citar o Lucas)
+- [x] WU M.10 Backoffice completo para operar: WhatsApp (guardar/remover a chave do CRM de cada cliente) e caixas de e-mail (listar, cadastrar com teste, testar, pausar, reativar, aposentar); sem login de suporte do Lucas (OWNER_LOGINS removido); `.env.example` e `vercel.json` (agendador) prontos
 - Provado em Postgres local: `scripts/test-isolation.ts`, `scripts/test-clients.ts` (também com `?schema=central`), importação de conteúdo, `next build` do sistema e do backoffice, rodada HTTP com dois clientes, primeiro acesso do backoffice no navegador.
-- Falta fora do código: razão social da DOR$ nas páginas legais, login de suporte `lucas` (OWNER_LOGINS) a remover na entrega, textos de Ajustes que citam a "central do dono".
+- Falta fora do código: razão social da DOR$ nas páginas legais (e-mail já está).
 - **GATE M:** isolamento provado e backoffice criando cliente de ponta a ponta (cumprido em banco local). Falta repetir no Supabase real na Fase 2.
 
 ### FASE 2 — Montagem [status: não iniciada; espera o gate da Fase 1]
+> Roteiro pronto em `docs/instalacao-dors.md` (passo a passo, variáveis, checklist do ensaio). Modelo do `.env` do Deskcomm em `deploy/deskcomm.env.modelo`; cópia extra em `deploy/COPIA-EXTERNA.md`.
 - WU 2.1 VPS: Docker, firewall, usuário, atualizações (só para o Deskcomm)
 - WU 2.2 GitHub: transferir `linkedin-auto` e `DeskcommCRM` (privados); gerar a imagem do fork na conta da DOR$
 - WU 2.3 Supabase (um projeto, três esquemas) + Deskcomm virgem na VPS (mesmas versões e config, Sentry off, segredos novos)

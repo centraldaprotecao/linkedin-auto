@@ -14,7 +14,7 @@ function pool(): Pool {
 
 // Esquema do backoffice (BACKOFFICE_DB_SCHEMA): permite dividir o mesmo Postgres com o sistema sem misturar tabelas.
 const SCHEMA = (process.env.BACKOFFICE_DB_SCHEMA ?? "public").replace(/[^a-z0-9_]/gi, "");
-const qualify = (sql: string) => sql.replace(/bo_(admin|audit)(?!_)/g, `"${SCHEMA}".bo_$1`);
+const qualify = (sql: string) => sql.replace(/bo_(admin|audit)(?!_)/g, `"${SCHEMA}".bo_$1`);
 
 async function migrate() {
   await pool().query(`CREATE SCHEMA IF NOT EXISTS "${SCHEMA}"`);

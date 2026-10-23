@@ -1,11 +1,14 @@
-# Cópia de segurança fora do servidor (Google Drive do cliente)
+# Cópia de segurança extra fora do servidor (Google Drive da DOR$)
 
-Feito uma vez, em chamada com o cliente (leva uns 10 minutos). O cliente precisa estar logado no Google dele.
+O Supabase já guarda cópias automáticas. Esta é a segunda camada, em outra conta, para o caso de problema na conta do Supabase.
+Feito uma vez, em chamada com a DOR$ (uns 10 minutos). A DOR$ precisa estar logada no Google dela.
 
-1. No servidor: `curl https://rclone.org/install.sh | bash`
-2. No computador do Lucas (com navegador): `rclone authorize "drive"` → o cliente faz login e autoriza → copiar o texto `{"access_token":...}` que o comando imprime.
-3. No servidor: `rclone config` → `n` (novo) → nome `drive` → tipo `drive` → deixar client_id/secret em branco → scope `3` (acesso só aos arquivos criados pelo rclone) → quando perguntar "Use auto config?" responder `n` → colar o texto do passo 2.
-4. Teste: `./backup.sh` e conferir o arquivo na pasta `Backup-sistema` do Drive do cliente.
-5. Teste de restauração (obrigatório antes de entregar): baixar o arquivo e rodar `gunzip -c app-AAAA-MM-DD.sql.gz | docker compose exec -T db psql -U app -d app` num banco de teste.
+1. Na VPS do Deskcomm: `apt-get install -y postgresql-client rclone` (se o `rclone` do pacote for antigo, use `curl https://rclone.org/install.sh | bash`).
+2. Crie `deploy/backup.env` com uma linha: `BACKUP_DATABASE_URL=<conexão direta do Supabase, porta 5432>` e `chmod 600 deploy/backup.env`. (Nunca vai para o git.)
+3. No computador do Lucas (com navegador): `rclone authorize "drive"` → a DOR$ faz login e autoriza → copie o texto `{"access_token":...}` que o comando imprime.
+4. Na VPS: `rclone config` → `n` (novo) → nome `drive` → tipo `drive` → deixe client_id/secret em branco → scope `3` (só arquivos criados pelo rclone) → "Use auto config?" responda `n` → cole o texto do passo 3.
+5. Agende: `30 3 * * * root /caminho/deploy/backup.sh >> /var/log/dors-backup.log 2>&1` em `/etc/cron.d/dors-backup`.
+6. Teste: rode `./backup.sh` e confira o arquivo na pasta `Backup-sistema` do Drive da DOR$.
+7. **Teste de restauração (obrigatório antes de entregar):** crie um banco vazio de teste (um projeto Supabase descartável ou um Postgres local), baixe o arquivo e rode `gunzip -c dors-AAAA-MM-DD.sql.gz | psql "<conexão do banco de teste>"`. Confira que as tabelas do esquema `central` voltaram.
 
-Sem esse passo o `backup.sh` avisa em `/var/log/linkedin-backup.log` que a cópia externa não está ligada.
+Sem o passo 4 o `backup.sh` avisa no log que a cópia externa não está ligada.

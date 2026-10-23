@@ -78,3 +78,49 @@ export const runNow = (id: string) => call<{ clients: number; results: Record<st
 
 // Há quanto tempo o robô rodou pela última vez (null = nunca rodou).
 export const robotAgeMs = (lastRobotRunAt: string | null): number | null => (lastRobotRunAt ? Date.now() - new Date(lastRobotRunAt).getTime() : null);
+
+// ---- WhatsApp (chave do CRM de cada cliente) ----
+export interface WhatsappView {
+  hasKey: boolean;
+  live: string;
+  channelId: string | null;
+}
+const q = (id: string) => `?client=${encodeURIComponent(id)}`;
+export const getWhatsapp = (id: string) => call<WhatsappView>(`/api/ops/whatsapp${q(id)}`, {}, 30_000);
+export const setWhatsappKey = (id: string, token: string) => call<{ saved: true }>(`/api/ops/whatsapp${q(id)}`, { method: "PUT", body: JSON.stringify({ token }) }, 30_000);
+export const removeWhatsappKey = (id: string) => call<{ removed: true }>(`/api/ops/whatsapp${q(id)}`, { method: "DELETE" });
+
+// ---- Caixas de e-mail de envio ----
+export interface MailboxView {
+  id: string;
+  address: string;
+  displayName: string | null;
+  status: "ACTIVE" | "PAUSED" | "RETIRED";
+  dailyLimit: number;
+  limitToday: number;
+  startedAt: string;
+  bounces: number;
+  blockedBounces: number;
+  lastError: string | null;
+  lastCheckedAt: string | null;
+}
+export interface MailboxInput {
+  address: string;
+  password: string;
+  displayName: string;
+  dailyLimit: number;
+  smtpHost: string;
+  smtpPort: number;
+  imapHost: string;
+  imapPort: number;
+}
+export const listMailboxes = (id: string) => call<{ mailboxes: MailboxView[] }>(`/api/ops/mailbox${q(id)}`);
+// O sistema responde 200 com { error } quando o pedido é válido mas a caixa não passou no teste.
+const mailboxPost = async (id: string, body: Record<string, unknown>): Promise<Result<Record<string, never>>> => {
+  const r = await call<{ error?: string }>(`/api/ops/mailbox${q(id)}`, { method: "POST", body: JSON.stringify(body) }, 60_000);
+  if (!r.ok) return r;
+  return r.data.error ? { ok: false, error: r.data.error } : { ok: true, data: {} };
+};
+export const addMailbox = (id: string, m: MailboxInput) => mailboxPost(id, { action: "add", ...m });
+export const testMailbox = (id: string, mailboxId: string) => mailboxPost(id, { action: "test", id: mailboxId });
+export const setMailbox = (id: string, mailboxId: string, action: "pause" | "resume" | "retire") => mailboxPost(id, { action, id: mailboxId });

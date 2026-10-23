@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { OWNER_LOGINS } from "@/lib/panelUsers";
 
-// Plano do cliente: quem escolhe é o dono, na Central LP (ela grava os números em Settings). Daqui para frente o
+// Plano do cliente: quem escolhe é a DOR$, no backoffice (ele grava os números em Settings). Daqui para frente o
 // sistema só LÊ estes números; nada de variável na Vercel. Campo vazio = sem limite naquele item.
 export interface Plan {
   name: string | null;
@@ -24,9 +23,9 @@ export async function countedMailboxes(): Promise<number> {
   return prisma.mailbox.count({ where: { status: { not: "RETIRED" } } });
 }
 
-// Pessoas com acesso ao painel que contam no plano: ativas, sem as contas do suporte.
+// Pessoas com acesso ao painel que contam no plano: as ativas.
 export async function countedUsers(): Promise<number> {
-  return prisma.panelUser.count({ where: { active: true, login: { notIn: OWNER_LOGINS } } });
+  return prisma.panelUser.count({ where: { active: true } });
 }
 
 // null = pode; texto = motivo (já em português, para mostrar a quem tentou).
