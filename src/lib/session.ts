@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { COOKIE_NAME, parseUserToken } from "@/lib/auth";
+import { COOKIE_NAME, SESSION_MAX_AGE_S, issuedBeforeLogout, parseUserToken } from "@/lib/auth";
 import { fingerprint } from "@/lib/panelUsers";
 import { prismaSystem } from "@/lib/prisma";
 
@@ -12,7 +12,7 @@ export async function getSession(): Promise<Session | null> {
   const parsed = parseUserToken(token);
   if (!parsed) return null;
   const user = await prismaSystem.panelUser.findUnique({ where: { id: parsed.id }, include: { client: { select: { status: true } } } });
-  if (!user || !user.active || user.clientId !== parsed.cid || user.client.status !== "ACTIVE" || fingerprint(user.passwordHash) !== parsed.fp) return null;
+  if (!user || !user.active || user.clientId !== parsed.cid || user.client.status !== "ACTIVE" || fingerprint(user.passwordHash) !== parsed.fp || issuedBeforeLogout(parsed.iat, user.sessionsValidFrom)) return null;
   return { kind: "user", clientId: user.clientId, user: { id: user.id, name: user.name, login: user.login } };
 }
 
@@ -28,6 +28,6 @@ export async function startSession(token: string): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_MAX_AGE_S,
   });
 }

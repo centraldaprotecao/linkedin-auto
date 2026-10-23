@@ -29,16 +29,27 @@ export function verifyPassword(pw: string, stored: string | null): boolean {
 // Trocar a senha muda a impressão digital: sessões e convites antigos deixam de valer.
 export const fingerprint = (stored: string | null) => createHash("sha256").update(stored ?? "sem-senha").digest("hex").slice(0, 10);
 
-export function createSessionToken(adminId: string, fp: string): string {
-  const body = `b.${adminId}.${fp}`;
+// Validade da sessão no servidor: 12 horas (o cookie também expira no navegador, mas quem o copia não depende disso).
+export const SESSION_MAX_AGE_S = 60 * 60 * 12;
+
+// b.<id>.<impressão digital da senha>.<emitido em (s)>.<assinatura>
+export function createSessionToken(adminId: string, fp: string, nowMs = Date.now()): string {
+  const body = `b.${adminId}.${fp}.${Math.floor(nowMs / 1000)}`;
   return `${body}.${sign(body)}`;
 }
 
-export function parseSessionToken(token: string | undefined): { id: string; fp: string } | null {
+export function parseSessionToken(token: string | undefined, nowMs = Date.now()): { id: string; fp: string; iat: number } | null {
   const p = (token ?? "").split(".");
-  if (p.length !== 4 || p[0] !== "b") return null;
-  return same(p[3], sign(`b.${p[1]}.${p[2]}`)) ? { id: p[1], fp: p[2] } : null;
+  if (p.length !== 5 || p[0] !== "b") return null;
+  if (!same(p[4], sign(p.slice(0, 4).join(".")))) return null;
+  const iat = Number(p[3]);
+  const now = Math.floor(nowMs / 1000);
+  if (!Number.isInteger(iat) || now - iat > SESSION_MAX_AGE_S || iat - now > 300) return null;
+  return { id: p[1], fp: p[2], iat };
 }
+
+// Cookie emitido antes do último "Sair" da pessoa não vale mais.
+export const issuedBeforeLogout = (iat: number, validFrom: Date | null | undefined) => Boolean(validFrom && iat < Math.floor(validFrom.getTime() / 1000));
 
 const INVITE_DAYS = 7;
 
@@ -62,16 +73,3 @@ export const setupKeyMatches = (given: string): boolean => {
 };
 
 export const normalizeEmail = (raw: string) => raw.trim().toLowerCase();
-
-// Limite de tentativas de entrada: 5 erros em 15 minutos bloqueiam aquele e-mail + aparelho por 15 minutos.
-const WINDOW_MS = 15 * 60 * 1000;
-const fails = new Map<string, number[]>();
-const recent = (key: string, now: number) => {
-  const list = (fails.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (list.length) fails.set(key, list);
-  else fails.delete(key);
-  return list;
-};
-export const loginBlocked = (key: string, now = Date.now()) => recent(key, now).length >= 5;
-export const loginFailed = (key: string, now = Date.now()) => void fails.set(key, [...recent(key, now), now]);
-export const loginSucceeded = (key: string) => void fails.delete(key);

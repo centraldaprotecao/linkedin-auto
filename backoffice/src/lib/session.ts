@@ -1,22 +1,31 @@
 import { cookies } from "next/headers";
-import { COOKIE, fingerprint, parseSessionToken } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { COOKIE, SESSION_MAX_AGE_S, fingerprint, issuedBeforeLogout, parseSessionToken } from "@/lib/auth";
 import { q } from "@/lib/db";
 
 export type Admin = { id: string; name: string; email: string };
 
-type Row = { id: string; name: string; email: string; password_hash: string | null; active: boolean };
+type Row = { id: string; name: string; email: string; password_hash: string | null; active: boolean; sessions_valid_from: Date | null };
 
 // Quem está logado, conferido no banco: administrador desativado ou com senha trocada perde a sessão.
 export async function sessionAdmin(token: string | undefined): Promise<Admin | null> {
   const parsed = parseSessionToken(token);
   if (!parsed) return null;
-  const [row] = await q<Row>("SELECT id, name, email, password_hash, active FROM bo_admin WHERE id = $1", [parsed.id]);
-  if (!row || !row.active || fingerprint(row.password_hash) !== parsed.fp) return null;
+  const [row] = await q<Row>("SELECT id, name, email, password_hash, active, sessions_valid_from FROM bo_admin WHERE id = $1", [parsed.id]);
+  if (!row || !row.active || fingerprint(row.password_hash) !== parsed.fp || issuedBeforeLogout(parsed.iat, row.sessions_valid_from)) return null;
   return { id: row.id, name: row.name, email: row.email };
 }
 
 export async function getAdmin(): Promise<Admin | null> {
   return sessionAdmin((await cookies()).get(COOKIE)?.value);
+}
+
+// Telas: sem administrador válido, vai para o login. É a segunda trava (a primeira é o proxy.ts); a tela busca
+// dados dos clientes com a chave interna do painel, então não pode depender só do porteiro.
+export async function pageAdmin(): Promise<Admin> {
+  const a = await getAdmin();
+  if (!a) redirect("/login");
+  return a;
 }
 
 // Ações de servidor aceitam POST direto: conferem a sessão de novo, mesmo com o proxy na frente.
@@ -32,10 +41,14 @@ export async function startSession(token: string): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 12, // 12 horas: é uma ferramenta de trabalho, não um app de celular
+    maxAge: SESSION_MAX_AGE_S, // 12 horas: é uma ferramenta de trabalho, não um app de celular
   });
 }
 
 export async function endSession(): Promise<void> {
-  (await cookies()).delete(COOKIE);
+  const store = await cookies();
+  // Além de apagar o cookie daqui, invalida os já emitidos (um cookie copiado deixa de abrir).
+  const parsed = parseSessionToken(store.get(COOKIE)?.value);
+  if (parsed) await q("UPDATE bo_admin SET sessions_valid_from = now() WHERE id = $1", [parsed.id]);
+  store.delete(COOKIE);
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HealthBadges, StatusBadge } from "@/components/Badges";
+import { pageAdmin } from "@/lib/session";
 import { listClients } from "@/lib/sistema";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ const usd = (n: number) => `US$ ${n.toFixed(2).replace(".", ",")}`;
 const of = (used: number, limit: number | null | undefined) => (limit == null ? String(used) : `${used} de ${limit}`);
 
 export default async function ClientsPage() {
+  await pageAdmin();
   const r = await listClients();
   return (
     <main className="wrap">

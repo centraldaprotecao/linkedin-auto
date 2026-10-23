@@ -11,12 +11,15 @@ import { open, seal } from "@/lib/secretBox";
 //   Google Cloud, com a Gmail API ativada e o redirecionamento
 //   <APP_URL>/api/email/google/callback autorizado.
 
+// Escopos mínimos, cada um com o motivo (auditoria de segurança F-07). Nenhum deles lê a caixa de entrada.
+// Não pedir mais nada sem justificar aqui: o Google avalia a justificativa na verificação do app.
 const SCOPES = [
   // Identifica a conta conectada (endereço de e-mail), sem acesso a mais nada.
   "openid",
   "email",
+  // Só ENVIA (não lê nem apaga): resumo do dia e avisos da equipe saem da conta do próprio corretor (src/lib/dailySummary.ts, src/lib/team.ts).
   "https://www.googleapis.com/auth/gmail.send",
-  // Google Agenda: ver os horários livres e criar a reuniao (com link do Meet).
+  // Google Agenda: ver os horários livres e criar a reuniao (com link do Meet). A tela de conexão deixa o corretor desmarcar.
   "https://www.googleapis.com/auth/calendar.events",
 ];
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";

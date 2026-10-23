@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { csvCell } from "@/lib/csv";
 import { LEAD_KIND_LABEL } from "@/lib/leadKind";
 import { STATUS_LABEL } from "@/lib/status";
 
@@ -7,10 +8,7 @@ import { STATUS_LABEL } from "@/lib/status";
 // /api/cron e /api/webhooks ficam de fora da sessão.
 // Separador ";" e BOM UTF-8 — é o que o Excel em português abre certo.
 
-function cell(value: unknown): string {
-  const text = value == null ? "" : String(value);
-  return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+const cell = csvCell;
 
 function date(d: Date | null | undefined): string {
   return d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "";

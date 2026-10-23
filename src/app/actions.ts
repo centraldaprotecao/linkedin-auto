@@ -4,8 +4,8 @@ import { requireSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { COOKIE_NAME } from "@/lib/auth";
+import { prisma, prismaSystem } from "@/lib/prisma";
+import { COOKIE_NAME, parseUserToken } from "@/lib/auth";
 
 export async function toggleAutomation(): Promise<{ error?: string }> {
   await requireSession();
@@ -24,6 +24,9 @@ export async function toggleAutomation(): Promise<{ error?: string }> {
 
 export async function logout() {
   const cookieStore = await cookies();
+  // Além de apagar o cookie daqui, invalida os já emitidos (um cookie copiado deixa de abrir).
+  const parsed = parseUserToken(cookieStore.get(COOKIE_NAME)?.value);
+  if (parsed) await prismaSystem.panelUser.updateMany({ where: { id: parsed.id, clientId: parsed.cid }, data: { sessionsValidFrom: new Date() } });
   cookieStore.delete(COOKIE_NAME);
   redirect("/login");
 }

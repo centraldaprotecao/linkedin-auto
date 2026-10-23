@@ -31,10 +31,11 @@ async function main() {
 
   // Sessão individual.
   const tok = createUserToken("cli1", "abc123", fingerprint(h));
-  assert.deepEqual(parseUserToken(tok), { cid: "cli1", id: "abc123", fp: fingerprint(h) });
-  assert.equal(isValidSessionToken(tok), true);
+  assert.deepEqual(parseUserToken(tok, now), { cid: "cli1", id: "abc123", fp: fingerprint(h), iat: Math.floor(now / 1000) });
+  assert.equal(isValidSessionToken(createUserToken("cli1", "abc123", fingerprint(h))), true);
   assert.equal(parseUserToken(tok.slice(0, -1) + (tok.endsWith("0") ? "1" : "0")), null);
   assert.equal(isValidSessionToken("u.abc123.aaaa.bbbb"), false);
+  assert.equal(isValidSessionToken("u.cli1.abc123.fp.bbbb"), false); // formato antigo, sem data de emissão
   assert.equal(parseUserToken(createUserToken("cli1", "abc123", "x").replace("abc123", "outro")), null);
 
   console.log("ok: acesso individual");

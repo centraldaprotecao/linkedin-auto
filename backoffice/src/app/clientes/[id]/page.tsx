@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { StatusBadge } from "@/components/Badges";
+import { pageAdmin } from "@/lib/session";
 import { clientStatus, getClient, getWhatsapp, listMailboxes, listUsers } from "@/lib/sistema";
 import { MailboxesPanel, WhatsappPanel } from "./Integrations";
 import { ClientForm, RunNowButton, StatusButton, UsersPanel } from "./Panels";
@@ -58,6 +59,7 @@ async function MailboxesSection({ id, name, planLimit }: { id: string; name: str
 }
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
+  await pageAdmin();
   const { id } = await params;
   const [c, u] = await Promise.all([getClient(id), listUsers(id)]);
   if (!c.ok && /não encontrado/i.test(c.error)) notFound();

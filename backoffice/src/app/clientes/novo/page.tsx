@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { pageAdmin } from "@/lib/session";
 import { NewClientForm } from "./NewClientForm";
 
-export default function NewClientPage() {
+export default async function NewClientPage() {
+  await pageAdmin();
   return (
     <main className="wrap" style={{ maxWidth: 760 }}>
       <p><Link href="/">← Clientes</Link></p>

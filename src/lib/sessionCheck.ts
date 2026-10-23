@@ -1,4 +1,4 @@
-import { parseUserToken } from "@/lib/auth";
+import { issuedBeforeLogout, parseUserToken } from "@/lib/auth";
 import { fingerprint } from "@/lib/panelUsers";
 import { prismaSystem } from "@/lib/prisma";
 
@@ -17,9 +17,9 @@ export async function sessionStillValid(token: string): Promise<boolean> {
   if (parsed) {
     const user = await prismaSystem.panelUser.findUnique({
       where: { id: parsed.id },
-      select: { active: true, passwordHash: true, clientId: true, client: { select: { status: true } } },
+      select: { active: true, passwordHash: true, clientId: true, sessionsValidFrom: true, client: { select: { status: true } } },
     });
-    ok = Boolean(user && user.active && user.clientId === parsed.cid && user.client.status === "ACTIVE" && fingerprint(user.passwordHash) === parsed.fp);
+    ok = Boolean(user && user.active && user.clientId === parsed.cid && user.client.status === "ACTIVE" && fingerprint(user.passwordHash) === parsed.fp && !issuedBeforeLogout(parsed.iat, user.sessionsValidFrom));
   }
   if (cache.size > 500) cache.clear();
   cache.set(token, { ok, at: now });

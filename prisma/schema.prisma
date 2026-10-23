@@ -661,12 +661,24 @@ model PanelUser {
   // scrypt$sal$hash; nulo até a pessoa abrir o link de convite e escolher a senha.
   passwordHash String?
   active       Boolean  @default(true)
+  // "Sair" grava a hora aqui: cookies emitidos antes dela deixam de valer (em todos os aparelhos).
+  sessionsValidFrom DateTime?
 
   // Dono do dado: todo registro pertence a um cliente. O valor vem do filtro central (src/lib/prisma.ts); o padrão vazio só existe para o código antigo continuar compilando e falha na chave estrangeira se o filtro for esquivado.
   clientId String @default("")
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+}
+
+// Tentativas de entrada erradas, para o bloqueio valer em qualquer instância do servidor. A chave é um hash
+// (login+aparelho, só login ou só aparelho); sem clientId de propósito: acontece antes de saber quem é o cliente.
+model LoginAttempt {
+  id  String   @id @default(cuid())
+  key String
+  at  DateTime @default(now())
+
+  @@index([key, at])
 }
 
 // Convite pedido à edges.run e ainda sem retorno (o lead só nasce no retorno). Sem isto, dois lotes

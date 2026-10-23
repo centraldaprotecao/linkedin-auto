@@ -13,20 +13,31 @@ export function signWith(value: string): string {
   return sign(value);
 }
 
-// Sessão de acesso individual: u.<cliente>.<id da pessoa>.<impressão digital da senha>.<assinatura>.
+// Validade da sessão no servidor (o cookie também expira no navegador, mas quem copia o cookie não depende disso).
+export const SESSION_MAX_AGE_S = 60 * 60 * 24 * 30;
+
+// Sessão de acesso individual: u.<cliente>.<id da pessoa>.<impressão digital da senha>.<emitido em (s)>.<assinatura>.
 // O cliente vai dentro do cookie assinado: é dele que o filtro de dados (src/lib/tenant.ts) tira o dono, sem consultar o banco.
-export function createUserToken(clientId: string, userId: string, fp: string): string {
-  const body = `u.${clientId}.${userId}.${fp}`;
+export function createUserToken(clientId: string, userId: string, fp: string, nowMs = Date.now()): string {
+  const body = `u.${clientId}.${userId}.${fp}.${Math.floor(nowMs / 1000)}`;
   return `${body}.${sign(body)}`;
 }
 
-export function parseUserToken(token: string | undefined): { cid: string; id: string; fp: string } | null {
+export function parseUserToken(token: string | undefined, nowMs = Date.now()): { cid: string; id: string; fp: string; iat: number } | null {
   const parts = (token ?? "").split(".");
-  if (parts.length !== 5 || parts[0] !== "u") return null;
-  const a = Buffer.from(parts[4]);
-  const b = Buffer.from(sign(`u.${parts[1]}.${parts[2]}.${parts[3]}`));
-  return a.length === b.length && timingSafeEqual(a, b) ? { cid: parts[1], id: parts[2], fp: parts[3] } : null;
+  if (parts.length !== 6 || parts[0] !== "u") return null;
+  const a = Buffer.from(parts[5]);
+  const b = Buffer.from(sign(parts.slice(0, 5).join(".")));
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  const iat = Number(parts[4]);
+  const now = Math.floor(nowMs / 1000);
+  // Vencido, ou emitido "no futuro" (relógio errado não pode esticar a validade).
+  if (!Number.isInteger(iat) || now - iat > SESSION_MAX_AGE_S || iat - now > 300) return null;
+  return { cid: parts[1], id: parts[2], fp: parts[3], iat };
 }
+
+// Cookie emitido antes do último "Sair" da pessoa não vale mais.
+export const issuedBeforeLogout = (iat: number, validFrom: Date | null | undefined) => Boolean(validFrom && iat < Math.floor(validFrom.getTime() / 1000));
 
 // Só confere a assinatura (o proxy não consulta o banco). Quem pode de fato entrar,
 // ou se a pessoa foi desativada, é decidido por getSession().

@@ -12,28 +12,33 @@ Quatro endereços no domínio da DOR$: `app.` (sistema), `painel.` (central de c
 
 ## 1. Supabase (um projeto, três esquemas)
 1. Na organização da DOR$ (plano Pro), crie **um** projeto, região `sa-east-1` (São Paulo). Anote a senha do banco.
-2. Em **Connect**, copie duas conexões: a **direta** (porta 5432) e a do **Transaction pooler** (porta 6543).
-3. Esquemas: `public` é do Deskcomm (passo 6); `central` é criado pela migração do sistema (passo 3); `backoffice` é criado pelo próprio painel no primeiro acesso.
-4. Premissa ainda não provada com um Supabase de verdade: o pooler (porta 6543) com a Vercel e a migração no esquema `central`. Em teste local tudo passou. Se o pooler der problema, use o **Session pooler** (porta 5432 do pooler) no `DATABASE_URL`.
+2. Em **Connect**, copie duas conexões do usuário `postgres`: a **direta** (porta 5432) e a do **Transaction pooler** (porta 6543). **A senha do `postgres` fica só com a DOR$ e não vai para nenhum sistema.**
+3. **Papéis do banco (obrigatório, uma vez).** Cada sistema ganha o próprio usuário, que só enxerga o próprio esquema (`deskcomm` → `public`, `sistema` → `central`, `painel` → `backoffice`). Sem isto, quem invadir a VPS do Deskcomm leria os dados de todos os clientes. Gere três senhas (`openssl rand -hex 24`) e rode, com a conexão direta do `postgres`:
+   ```
+   psql "<conexão direta do postgres>" -v ON_ERROR_STOP=1 -v senha_sistema="…" -v senha_painel="…" -v senha_deskcomm="…" -f deploy/papeis-banco.sql
+   ```
+   Daqui em diante, **cada sistema usa só a conexão do próprio usuário**: troque `postgres` por `sistema`, `painel` ou `deskcomm` na conexão (no pooler o usuário tem o formato `sistema.<ref-do-projeto>`, igual ao `postgres.<ref>` que o Supabase mostra). Esquemas: `public` é do Deskcomm (passo 6); `central` é criado pelo script e preenchido pela migração do sistema (passo 3); `backoffice` é criado pelo script e preenchido pelo próprio painel no primeiro acesso.
+4. No painel do Supabase › Project Settings › Data API › **Exposed schemas**: conferir que só `public` está na lista (nunca `central` nem `backoffice`). As tabelas já nascem com RLS ligado e fechadas para `anon`/`authenticated`, mas a exposição desligada é a primeira trava.
+5. Premissa ainda não provada com um Supabase de verdade: o pooler (porta 6543) com a Vercel e a migração no esquema `central`. Em teste local tudo passou. Se o pooler der problema, use o **Session pooler** (porta 5432 do pooler) no `DATABASE_URL`.
 
 ## 2. Vercel (dois projetos)
 No time da DOR$ (plano Pro):
 
 **Projeto `sistema`** — repositório `linkedin-auto`, pasta raiz `/`.
-- Variáveis: todas as de `.env.example` (raiz). `DATABASE_URL` = pooler (6543) **sem** `schema` na URL; `DIRECT_URL` = conexão direta (5432) com `?schema=central`; `DATABASE_SCHEMA=central`.
+- Variáveis: todas as de `.env.example` (raiz). `DATABASE_URL` = pooler (6543) **do usuário `sistema`**, sem `schema` na URL; `DIRECT_URL` = conexão direta (5432) **do usuário `sistema`** com `?schema=central`; `DATABASE_SCHEMA=central`.
 - Domínio: `app.` → o projeto. O `vercel.json` já traz o agendador (`/api/cron/poll` a cada 15 minutos); a Vercel envia sozinha o `Authorization: Bearer <CRON_SECRET>`.
 - O robô, com mais de um cliente, chama a si mesmo uma vez por cliente (cada chamada tem o próprio limite de tempo).
 
 **Projeto `painel`** — o mesmo repositório, pasta raiz `backoffice`.
-- Variáveis: as de `backoffice/.env.example`. `BACKOFFICE_DATABASE_URL` = pooler (6543); `BACKOFFICE_DB_SCHEMA=backoffice`; `SISTEMA_URL=https://app.…`; `OPS_SECRET` = o mesmo do projeto `sistema`.
+- Variáveis: as de `backoffice/.env.example`. `BACKOFFICE_DATABASE_URL` = pooler (6543) **do usuário `painel`**; `BACKOFFICE_DB_SCHEMA=backoffice`; `SISTEMA_URL=https://app.…`; `OPS_SECRET` = o mesmo do projeto `sistema`.
 - Domínio: `painel.` → o projeto.
 
 ## 3. Migração do banco do sistema
 No computador de quem monta, com o código da DOR$:
 ```
-DIRECT_URL="<conexão direta>?schema=central" npx prisma migrate deploy
+DIRECT_URL="<conexão direta do usuário sistema>?schema=central" npx prisma migrate deploy
 ```
-Cria o esquema `central` e todas as tabelas (inclui a migração multi-cliente). É a única forma de mudar o banco: migração manual, sempre antes de publicar o código que depende dela.
+Cria todas as tabelas no esquema `central` (inclui a migração multi-cliente e a de segurança, que liga o RLS). É a única forma de mudar o banco: migração manual, sempre antes de publicar o código que depende dela.
 
 ## 4. Primeiro acesso do painel e o cliente 1
 1. Abra `https://painel.…` → "Primeiro acesso" → código de instalação (`BACKOFFICE_SETUP_KEY`) → crie o administrador (e-mail e senha da pessoa da DOR$).
@@ -43,19 +48,19 @@ Cria o esquema `central` e todas as tabelas (inclui a migração multi-cliente).
 ## 5. Importar o conteúdo que já existe
 O Lucas gerou `entrega/conteudo-dors.json` (7 campanhas, 52 trechos do manual da Helena, ajustes), já sem os vínculos com contas dele. Com o arquivo no computador de quem monta:
 ```
-DATABASE_URL="<pooler ou direta>" DATABASE_SCHEMA=central SESSION_SECRET="…" npx tsx scripts/importar-conteudo.ts <id-do-cliente>
+DATABASE_URL="<pooler ou direta, usuário sistema>" DATABASE_SCHEMA=central SESSION_SECRET="…" npx tsx scripts/importar-conteudo.ts <id-do-cliente>
 ```
 Recusa se o cliente já tiver campanhas ou manual. O cliente continua **pausado** e em **modo de aprovação**.
 
 ## 6. Deskcomm (WhatsApp) na VPS da DOR$
 1. DNS: `crm.` aponta para o IP da VPS. Ubuntu, Docker instalado, firewall só com 22 (ou a porta de administração), 80 e 443.
 2. Clone o fork `DeskcommCRM` da conta da DOR$ e gere a imagem no GitHub da DOR$ (`ghcr.io/<usuario>/deskcommcrm:fork-latest`). Sem o fork não há QR, troca de número nem histórico com mídia.
-3. `deploy/deskcomm.env.modelo` é o `.env` de partida (mesmas versões e decisões do Deskcomm atual). Preencha as linhas "GERAR NOVO" e as do Supabase **da DOR$**; `APP_IMAGE` aponta para a imagem da DOR$. A lista completa e mascarada do Deskcomm atual está com o Lucas (`entrega/deskcomm-config-lucas-mascarada.txt`, fora do git).
+3. `deploy/deskcomm.env.modelo` é o `.env` de partida (mesmas versões e decisões do Deskcomm atual). Preencha as linhas "GERAR NOVO" e as do Supabase **da DOR$** (em `SUPABASE_DB_URL`, a conexão do usuário **`deskcomm`**, nunca a do `postgres`); `APP_IMAGE` aponta para a imagem da DOR$. A lista completa e mascarada do Deskcomm atual está com o Lucas (`entrega/deskcomm-config-lucas-mascarada.txt`, fora do git).
 4. Suba com o instalador do próprio Deskcomm (`ubuntu-production-installer.sh`) ou com `docker-compose.prod.yml`. Confira que `worker` e `scheduler` ficam em 1.69.0 e o WAHA em `latest-2026.7.2`, engine NOWEB.
-5. Supabase: as migrações do Deskcomm rodam no esquema `public` (o instalador faz isso).
+5. Supabase: as migrações do Deskcomm rodam no esquema `public`, como o usuário `deskcomm` (o instalador faz isso). **Premissa não provada:** se o instalador falhar por falta de permissão, NÃO troque pela conexão do `postgres`: leia o erro e dê só aquele privilégio ao `deskcomm` (ou, plano B, crie um segundo projeto Supabase só para o Deskcomm).
 6. Crie uma **organização por cliente** (a primeira: DOR$) e uma **chave de acesso** com `mcp:read`, `mcp:write` e `role:manager`. A chave entra no painel (cliente › WhatsApp › "Guardar a chave"); o painel testa e guarda cifrada.
 7. Aviso instantâneo: no Deskcomm, regra (gatilho `message.received`, ação "Chamar webhook") para `https://app.…/api/webhooks/deskcomm` com o segredo `DESKCOMM_WEBHOOK_SECRET`.
-8. Cópia extra no Drive da DOR$: `deploy/COPIA-EXTERNA.md`.
+8. Cópia extra no Drive da DOR$: `deploy/COPIA-EXTERNA.md` — **em outra máquina da DOR$, não nesta VPS** (a cópia enxerga todos os esquemas).
 
 ## 7. Contas externas (webhooks e retornos)
 - **Edges:** webhook em Developer Settings › Webhooks → `https://app.…/api/webhooks/edges`, cabeçalho `X-Webhook-Secret` = `EDGES_WEBHOOK_SECRET`. O cliente conecta o LinkedIn em Ajustes (chamada). **Conferir no ensaio:** que o aviso de "sessão caiu" traz a identidade (senão ele é ignorado — ver `identityOf` em `src/app/api/webhooks/edges/route.ts`).
@@ -68,6 +73,8 @@ Painel › cliente › "Caixas de e-mail de envio": endereço, senha, servidores
 
 ## 9. Ensaio (envio desligado) — checklist
 - [ ] Dois clientes de teste criados no painel: um não vê o outro (contatos, campanhas, mensagens, caixas).
+- [ ] Com o usuário `deskcomm`, `SELECT * FROM central."Client"` e `SELECT * FROM backoffice.bo_admin` dão "permission denied"; com a chave `anon` da API, nada de `central`/`backoffice` aparece.
+- [ ] Errar a senha 5 vezes bloqueia o login por 15 minutos (sistema e painel); "Sair" derruba o cookie anterior.
 - [ ] Cliente pausado perde o acesso; reativado volta.
 - [ ] "Rodar o robô agora" funciona; o Vercel Cron aparece nos logs a cada 15 minutos.
 - [ ] Pooler do Supabase: sem erro de conexão com 2 clientes ao mesmo tempo.
