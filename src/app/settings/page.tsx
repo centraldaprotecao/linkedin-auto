@@ -4,6 +4,7 @@ import { emailConnection } from "@/lib/email";
 import { emailsSentToday, messagesSentToday, whatsappSentToday } from "@/lib/limits";
 import { deskcommConfigOf, whatsappLiveStatus } from "@/lib/deskcomm";
 import { emailLeftToday } from "@/lib/mailboxes";
+import { warmupInfo, warmupMessage } from "@/lib/mailboxPolicy";
 import { emailHealth } from "@/lib/emailHealth";
 import { EmailHealthList } from "./EmailHealthList";
 import { pushPublicKey } from "@/lib/push";
@@ -83,7 +84,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const emailResult = (await searchParams).email;
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" } });
   const whatsapp = deskcommConfigOf(settings);
-  const [email, team, status, linkedinToday, emailToday, whatsappToday, { sentWeek, openedWeek }, activeBoxes, boxProblems, emailLeft, whatsappLive] = await Promise.all([
+  const [email, team, status, linkedinToday, emailToday, whatsappToday, { sentWeek, openedWeek }, activeBoxes, boxProblems, emailLeft, whatsappLive, activeMailboxes] = await Promise.all([
     emailConnection(),
     prisma.teamMember.findMany({ orderBy: { createdAt: "asc" } }),
     linkedinStatus(settings),
@@ -95,7 +96,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     prisma.mailbox.count({ where: { status: "ACTIVE", lastError: { not: null } } }),
     emailLeftToday(settings),
     whatsapp ? whatsappLiveStatus(whatsapp) : null,
+    prisma.mailbox.findMany({ where: { status: "ACTIVE" }, select: { status: true, dailyLimit: true, startedAt: true } }),
   ]);
+  const warmup = warmupInfo(activeMailboxes, new Date());
 
   // O número está pareado de verdade (o Deskcomm diz WORKING), não só configurado.
   const whatsappOn = whatsappLive === "connected";
@@ -158,6 +161,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                   O e-mail da prospecção sai por {activeBoxes === 1 ? "uma caixa de envio" : "caixas de envio"} própria{activeBoxes === 1 ? "" : "s"}, em rodízio, com limite diário que sobe aos poucos.
                   {boxProblems > 0 && " Alguma caixa está com problema: avise o suporte."}
                 </p>
+                {warmup && <p className="note note-warn" role="status">{warmupMessage(warmup)}</p>}
                 <EmailHealthList boxes={await emailHealth()} />
                 <EmailChannelOptions enabled={settings.emailChannelEnabled} dailyLimit={settings.dailyEmailLimit} fallbackDays={settings.emailInviteFallbackDays} />
                 <p className="hint">

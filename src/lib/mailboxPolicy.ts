@@ -11,7 +11,7 @@ export function startOfDaySP(now: Date): Date {
 }
 
 // Aquecimento: a caixa nova começa com poucos e-mails por dia e sobe 1 por dia até o teto dela
-// (com o teto padrão de 40, são uns 35 dias; as 3 primeiras semanas são as mesmas de antes, o teto mais alto só vale depois).
+// (com o teto padrão de 30, são 25 dias).
 // Caixa que sai disparando em volume logo no começo
 // costuma cair em spam.
 export const RAMP_START = 5;
@@ -24,9 +24,40 @@ export interface MailboxLike {
   startedAt: Date;
 }
 
+function daysSinceStart(mb: Pick<MailboxLike, "startedAt">, now: Date): number {
+  return Math.max(0, Math.round((startOfDaySP(now).getTime() - startOfDaySP(mb.startedAt).getTime()) / DAY_MS));
+}
+
 export function effectiveLimit(mb: Pick<MailboxLike, "dailyLimit" | "startedAt">, now: Date): number {
-  const days = Math.max(0, Math.round((startOfDaySP(now).getTime() - startOfDaySP(mb.startedAt).getTime()) / DAY_MS));
-  return Math.max(0, Math.min(mb.dailyLimit, RAMP_START + days * RAMP_STEP));
+  return Math.max(0, Math.min(mb.dailyLimit, RAMP_START + daysSinceStart(mb, now) * RAMP_STEP));
+}
+
+// Aviso de aquecimento para a tela. O aquecimento NUNCA impede de enviar: só limita ao recomendado.
+export interface WarmupInfo {
+  warming: number; // caixas ainda aquecendo
+  total: number; // caixas ativas
+  todayCap: number; // quanto as caixas ativas podem mandar hoje, somadas
+  fullCap: number; // quanto poderão mandar quando terminarem o aquecimento
+  daysLeft: number; // dias até a última terminar
+}
+
+export function warmupInfo(boxes: Pick<MailboxLike, "status" | "dailyLimit" | "startedAt">[], now: Date): WarmupInfo | null {
+  const active = boxes.filter((b) => b.status === "ACTIVE");
+  const warming = active.filter((b) => effectiveLimit(b, now) < b.dailyLimit);
+  if (warming.length === 0) return null;
+  const daysLeft = Math.max(1, ...warming.map((b) => Math.ceil((b.dailyLimit - RAMP_START) / RAMP_STEP) - daysSinceStart(b, now)));
+  return {
+    warming: warming.length,
+    total: active.length,
+    todayCap: active.reduce((n, b) => n + effectiveLimit(b, now), 0),
+    fullCap: active.reduce((n, b) => n + b.dailyLimit, 0),
+    daysLeft,
+  };
+}
+
+export function warmupMessage(w: WarmupInfo): string {
+  const who = w.total === 1 ? "A caixa de envio está" : w.warming === w.total ? "As caixas de envio estão" : `${w.warming} de ${w.total} caixas de envio estão`;
+  return `Fase de aquecimento de domínio: ${who} aquecendo. Limite atual: ${w.todayCap} e-mail${w.todayCap === 1 ? "" : "s"} por dia (chega a ${w.fullCap} em cerca de ${w.daysLeft} dia${w.daysLeft === 1 ? "" : "s"}). Você pode enviar normalmente: o aquecimento só impede de passar do recomendado, para os e-mails não caírem em spam.`;
 }
 
 export function remainingToday(mb: MailboxLike, sentToday: number, now: Date): number {

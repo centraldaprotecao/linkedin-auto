@@ -86,3 +86,22 @@ assert.notEqual(seal("minha senha 123"), box, "cada cifra usa um valor novo");
 assert.throws(() => open(box.slice(0, -2) + "AA"));
 
 console.log("ok: caixas de envio");
+
+// Aviso de aquecimento: soma o limite de hoje, diz quando termina e nunca aparece sem caixa aquecendo.
+import { warmupInfo, warmupMessage } from "../src/lib/mailboxPolicy";
+{
+  const w0 = (extra: Partial<MailboxLike> = {}) => ({ status: "ACTIVE" as const, dailyLimit: 30, startedAt: at("2026-10-01T12:00:00Z"), ...extra });
+  const dia1 = at("2026-10-01T15:00:00Z");
+  const i = warmupInfo([w0(), w0()], dia1)!;
+  assert.deepEqual([i.warming, i.total, i.todayCap, i.fullCap, i.daysLeft], [2, 2, 10, 60, 25], "duas caixas no primeiro dia");
+  assert.match(warmupMessage(i), /As caixas de envio estão aquecendo\. Limite atual: 10 e-mails por dia \(chega a 60 em cerca de 25 dias\)/);
+  assert.match(warmupMessage(i), /Você pode enviar normalmente/);
+  assert.equal(warmupInfo([w0()], at("2026-10-26T15:00:00Z")), null, "no 26º dia chegou ao limite de 30");
+  assert.equal(warmupInfo([w0({ status: "PAUSED" })], dia1), null, "pausada não conta");
+  assert.equal(warmupInfo([], dia1), null);
+  const mix = warmupInfo([w0(), w0({ startedAt: at("2026-08-01T12:00:00Z") })], at("2026-10-10T15:00:00Z"))!;
+  assert.deepEqual([mix.warming, mix.total, mix.todayCap, mix.fullCap], [1, 2, 14 + 30, 60]);
+  assert.match(warmupMessage(mix), /^Fase de aquecimento de domínio: 1 de 2 caixas de envio estão aquecendo/);
+  assert.match(warmupMessage(warmupInfo([w0()], at("2026-10-25T15:00:00Z"))!), /A caixa de envio está aquecendo\. Limite atual: 29 e-mails por dia \(chega a 30 em cerca de 1 dia\)\./);
+  console.log("ok: aviso de aquecimento");
+}
