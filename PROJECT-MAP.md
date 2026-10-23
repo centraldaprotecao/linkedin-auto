@@ -49,7 +49,7 @@ Acompanhar 7 dias · desligar o que era do Lucas (Vercel, Neon, cron-job.org, VP
 ## CURRENT FRONTIER
 - Fase 1: esperar a DOR$ abrir as contas (guia atualizado; falta atualizar o bloco de banco para Supabase único).
 - Fase M: pronta e testada em banco local. Nada a fazer até o gate da Fase 1.
-- Fora das contas: o aviso de aquecimento (WU 2.6) pode ser feito já.
+- WU 2.6 (aviso de aquecimento e limite 30) feita e testada em 2026-10-23.
 
 ## BLOCKED
 - FASE 2: espera o gate da Fase 1.

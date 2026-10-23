@@ -43,7 +43,7 @@ Fora: Neon, cron-job.org, Fish Audio (só o ElevenLabs), Resend, OpenAI e Sentry
 ## REGRAS DE NEGÓCIO
 - E-mail de envio: caixas novas do InboxKit, em domínios secundários comprados pela DOR$. **Sem ponte com as caixas do Lucas.**
 - Capacidade de referência: **30 e-mails/dia por caixa** (≈ 660/mês em 22 dias úteis), 2 a 3 caixas por domínio (limite do InboxKit: 5). Cada caixa custa US$ 3/mês.
-- Aquecimento: a caixa começa em 5/dia e sobe 1/dia até o limite (chega a 30 no 26º dia). Não impede enviar: só limita ao recomendado. O sistema deve avisar na tela ("fase de aquecimento, limite atual X") — ainda não existe (WU 2.6).
+- Aquecimento: a caixa começa em 5/dia e sobe 1/dia até o limite (chega a 30 no 26º dia). Não impede enviar: só limita ao recomendado. O sistema deve avisar na tela ("fase de aquecimento, limite atual X") — feito em Ajustes › E-mail (WU 2.6).
 - Novas caixas: compra manual no InboxKit e cadastro no sistema; a criação por API é futura.
 
 ## DADOS (DEC-18)
