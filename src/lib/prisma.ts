@@ -124,7 +124,8 @@ export const prisma = base.$extends({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
-        if (!scoped.has(model)) return query(args);
+        // Modelo sem dono (Client, LoginAttempt) é do sistema, não do cliente: só pelo prismaSystem.
+        if (!scoped.has(model)) throw new Error(`O modelo ${model} não é de um cliente: use prismaSystem.`);
         const clientId = await currentClientId();
         return query(scopeArgs(model, operation, args, clientId) as typeof args);
       },

@@ -21,7 +21,8 @@ export async function login(_prev: { error?: string } | undefined, form: FormDat
   const ok = verifyPassword(password, admin?.password_hash ?? null);
   if (!admin || !admin.active || !ok) {
     await loginFailed(email, ip);
-    await audit(null, "Entrada recusada", email.slice(0, 80));
+    // Só guarda o e-mail se ele existe: texto digitado por qualquer visitante não entra no registro.
+    await audit(null, "Entrada recusada", admin ? admin.email : "e-mail não cadastrado");
     return { error: "E-mail ou senha incorretos." };
   }
   await startSession(createSessionToken(admin.id, fingerprint(admin.password_hash)));

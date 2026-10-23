@@ -4,9 +4,10 @@ import { prismaSystem } from "@/lib/prisma";
 import { runAsClient } from "@/lib/tenant";
 
 // Endpoints de operação (/api/ops/*): quem chama é o backoffice da DOR$ (ou a rotina do servidor), nunca uma pessoa no navegador.
-// Sem tela e sem sessão: valem só com o segredo de operação (OPS_SECRET; se não existir, o do robô, CRON_SECRET) no cabeçalho Authorization.
+// Sem tela e sem sessão: valem só com o segredo de operação (OPS_SECRET) no cabeçalho Authorization.
+// Sem OPS_SECRET configurado, recusa tudo: a chave do robô (CRON_SECRET) não abre estas rotas.
 export function opsAuthorized(request: Request): boolean {
-  return isValidBearer(request.headers.get("authorization"), process.env.OPS_SECRET || process.env.CRON_SECRET);
+  return isValidBearer(request.headers.get("authorization"), process.env.OPS_SECRET);
 }
 
 // Rotas que mexem nos dados de UM cliente: o cliente vem em ?client= (ou no cabeçalho x-client-id) e a rota roda no contexto dele.

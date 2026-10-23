@@ -36,8 +36,9 @@ export async function GET(request: Request) {
   const results: Record<string, unknown> = {};
   // Vários clientes: cada um roda na sua própria chamada (cada uma com o próprio limite de tempo), todas ao mesmo tempo.
   // Assim a rodada não estoura o tempo da função quando a carteira cresce.
-  if (!only && clients.length > 1) {
-    const base = process.env.APP_URL?.replace(/\/$/, "") || new URL(request.url).origin;
+  // Só com APP_URL configurado: o endereço da própria requisição não é confiável para mandar a chave adiante. Sem ele, roda em sequência aqui mesmo.
+  const base = process.env.APP_URL?.replace(/\/$/, "");
+  if (!only && clients.length > 1 && base) {
     await Promise.all(
       clients.map(async (c) => {
         try {

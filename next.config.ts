@@ -3,14 +3,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Planilha de contatos vai como texto numa ação do servidor (o aviso da tela fala em 2 MB) e arquivos de material (até 4 MB).
   experimental: { serverActions: { bodySizeLimit: "5mb" } },
-  // Cabeçalhos de segurança: ninguém embute o painel em outro site, e o navegador não "adivinha" tipos de arquivo.
+  // Cabeçalhos de segurança: ninguém embute o painel em outro site, formulários e <base> só apontam para o próprio endereço, sem plug-ins,
+  // e o navegador não "adivinha" tipos de arquivo. (Sem script-src de propósito: o Next injeta scripts próprios; fechar isso exige nonce em todas as páginas.)
   async headers() {
     return [
       {
         source: "/:path*",
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],

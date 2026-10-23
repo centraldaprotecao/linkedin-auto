@@ -4,7 +4,7 @@ const COOKIE_NAME = "session";
 
 function sign(value: string) {
   const secret = process.env.SESSION_SECRET;
-  if (!secret) throw new Error("SESSION_SECRET não configurado.");
+  if (!secret || secret.length < 32) throw new Error("SESSION_SECRET não configurado (mínimo 32 caracteres).");
   return createHmac("sha256", secret).update(value).digest("hex");
 }
 

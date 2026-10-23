@@ -25,7 +25,11 @@ export function hashPassword(pw: string): string {
 
 export function verifyPassword(pw: string, stored: string | null): boolean {
   const [kind, salt, hash] = (stored ?? "").split("$");
-  if (kind !== "scrypt" || !salt || !hash) return false;
+  if (kind !== "scrypt" || !salt || !hash) {
+    // Sem senha guardada: gasta o mesmo tempo, para o tempo de resposta não revelar quais logins existem.
+    scryptSync(pw, "0".repeat(32), 64);
+    return false;
+  }
   const expected = Buffer.from(hash, "hex");
   const got = scryptSync(pw, Buffer.from(salt, "hex"), expected.length);
   return got.length === expected.length && timingSafeEqual(got, expected);

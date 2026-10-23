@@ -98,6 +98,27 @@ async function main() {
   await q("DELETE FROM bo_login_fail");
   console.log("ok  bloqueio de login do painel, contado no banco");
 
+  // ---- Baixas: OPS sem fallback, Client fechado no acesso filtrado, SESSION_SECRET curto, login sem usuário
+  const { opsAuthorized } = await import("../src/lib/ops");
+  process.env.CRON_SECRET = "c".repeat(40);
+  delete process.env.OPS_SECRET;
+  const asCron = new Request("http://x/api/ops/status", { headers: { authorization: `Bearer ${"c".repeat(40)}` } });
+  assert.equal(opsAuthorized(asCron), false, "sem OPS_SECRET a chave do robô não abre /api/ops");
+  process.env.OPS_SECRET = "o".repeat(40);
+  assert.equal(opsAuthorized(asCron), false, "CRON_SECRET não abre /api/ops");
+  assert.equal(opsAuthorized(new Request("http://x", { headers: { authorization: `Bearer ${"o".repeat(40)}` } })), true);
+  const { prisma } = await import("../src/lib/prisma");
+  const { runAsClient } = await import("../src/lib/tenant");
+  await assert.rejects(() => runAsClient("qualquer", async () => prisma.client.findMany()), /prismaSystem/, "o acesso filtrado não enxerga a tabela de clientes");
+  const { verifyPassword } = await import("../src/lib/panelUsers");
+  assert.equal(verifyPassword("qualquer-coisa", null), false);
+  const { seal } = await import("../src/lib/secretBox");
+  process.env.SESSION_SECRET = "curto";
+  assert.throws(() => seal("x"), /mínimo 32/);
+  assert.throws(() => sys.createUserToken("c", "u", "f"), /mínimo 32/);
+  process.env.SESSION_SECRET = "x".repeat(32);
+  console.log("ok  baixas: OPS_SECRET exclusivo, Client fechado, segredo mínimo");
+
   console.log("\nTudo certo: correções da auditoria.");
   process.exit(0);
 }
