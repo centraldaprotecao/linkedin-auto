@@ -74,7 +74,7 @@ BEGIN
     VALUES (NEW."clientId", NEW."id", 'DEAL', OLD."dealStage"::text, NEW."dealStage"::text, NEW."dealValueCents");
   END IF;
   RETURN NULL;
-END $$ LANGUAGE plpgsql;
+END $$ LANGUAGE plpgsql SET search_path FROM CURRENT;
 
 -- DESFAZER (só vale enquanto existir um único cliente; com dois, os índices únicos antigos podem não voltar):
 --   restaurar o ramo/backup feito antes; ou remover as colunas "clientId", os índices novos, recriar os únicos antigos

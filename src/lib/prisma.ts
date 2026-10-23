@@ -5,7 +5,8 @@ import { currentClientId } from "@/lib/tenant";
 const globalForPrisma = globalThis as unknown as { prismaBase?: PrismaClient };
 
 function createClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  // DATABASE_SCHEMA: o sistema pode morar num esquema próprio (ex.: "central") dentro de um Postgres compartilhado com outro sistema (Supabase da DOR$).
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL, max: Number(process.env.DATABASE_POOL_MAX) || 5 }, { schema: process.env.DATABASE_SCHEMA || undefined });
   return new PrismaClient({ adapter });
 }
 

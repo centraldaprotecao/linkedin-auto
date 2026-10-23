@@ -1,10 +1,6 @@
-import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Imagem enxuta para o servidor (copia só o que o app usa).
-  output: "standalone",
-  outputFileTracingRoot: path.resolve(process.cwd()),
   // Cabeçalhos de segurança: ninguém embute o painel em outro site, e o navegador não "adivinha" tipos de arquivo.
   async headers() {
     return [

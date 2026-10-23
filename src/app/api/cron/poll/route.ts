@@ -23,7 +23,7 @@ export const maxDuration = 120;
 //    novidade) e, quando a última mensagem é do lead, aciona o agente de IA.
 // 2. Proativo: detecta convites aceitos, manda a mensagem de abertura e os
 //    follow-ups de quem parou de responder.
-// Multi-cliente: o robô percorre os clientes ativos, um de cada vez, cada um no próprio contexto de dados.
+// Multi-cliente: o robô percorre os clientes ativos, cada um no próprio contexto de dados (com mais de um, cada um numa chamada à parte).
 // Um cliente com problema não pode parar os outros. ?client=<id> roda só um (teste e ensaio).
 export async function GET(request: Request) {
   // O agendador usa CRON_SECRET; o backoffice ("rodar agora" de um cliente) usa OPS_SECRET.
@@ -34,6 +34,24 @@ export async function GET(request: Request) {
   const only = new URL(request.url).searchParams.get("client");
   const clients = await prismaSystem.client.findMany({ where: { status: "ACTIVE", ...(only ? { id: only } : {}) }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } });
   const results: Record<string, unknown> = {};
+  // Vários clientes: cada um roda na sua própria chamada (cada uma com o próprio limite de tempo), todas ao mesmo tempo.
+  // Assim a rodada não estoura o tempo da função quando a carteira cresce.
+  if (!only && clients.length > 1) {
+    const base = process.env.APP_URL?.replace(/\/$/, "") || new URL(request.url).origin;
+    await Promise.all(
+      clients.map(async (c) => {
+        try {
+          const res = await fetch(`${base}/api/cron/poll?client=${encodeURIComponent(c.id)}`, { headers: { authorization: auth ?? "" }, signal: AbortSignal.timeout(110_000), cache: "no-store" });
+          results[c.id] = res.ok ? ((await res.json()) as { results?: Record<string, unknown> }).results?.[c.id] ?? {} : { error: `rodada respondeu ${res.status}` };
+        } catch (err) {
+          // passou do tempo de espera: a rodada do cliente continua por conta própria
+          console.error(`[poll] Sem resposta do cliente ${c.name} (${c.id})`, err);
+          results[c.id] = { error: "sem resposta a tempo (a rodada pode ter terminado depois)" };
+        }
+      }),
+    );
+    return NextResponse.json({ clients: clients.length, results });
+  }
   for (const c of clients) {
     try {
       results[c.id] = await runAsClient(c.id, pollClient);

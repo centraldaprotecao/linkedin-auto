@@ -12,8 +12,13 @@ function pool(): Pool {
   return g.boPool;
 }
 
+// Esquema do backoffice (BACKOFFICE_DB_SCHEMA): permite dividir o mesmo Postgres com o sistema sem misturar tabelas.
+const SCHEMA = (process.env.BACKOFFICE_DB_SCHEMA ?? "public").replace(/[^a-z0-9_]/gi, "");
+const qualify = (sql: string) => sql.replace(/bo_(admin|audit)(?!_)/g, `"${SCHEMA}".bo_$1`);
+
 async function migrate() {
-  await pool().query(`
+  await pool().query(`CREATE SCHEMA IF NOT EXISTS "${SCHEMA}"`);
+  await pool().query(qualify(`
     CREATE TABLE IF NOT EXISTS bo_admin (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -32,7 +37,7 @@ async function migrate() {
       detail TEXT
     );
     CREATE INDEX IF NOT EXISTS bo_audit_at_idx ON bo_audit (at DESC);
-  `);
+  `));
 }
 
 export async function q<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
@@ -40,5 +45,5 @@ export async function q<T = Record<string, unknown>>(sql: string, params: unknow
     g.boReady = undefined;
     throw e;
   }));
-  return (await pool().query(sql, params)).rows as T[];
+  return (await pool().query(qualify(sql), params)).rows as T[];
 }
