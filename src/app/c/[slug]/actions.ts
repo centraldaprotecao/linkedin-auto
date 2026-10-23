@@ -1,6 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaSystem } from "@/lib/prisma";
+import { runAsClient } from "@/lib/tenant";
 import { isCaptureSlug, readCapture } from "@/lib/capture";
 import { checkEmailDomain, domainOf, noMailMessage } from "@/lib/emailDomain";
 import { appendNote } from "@/lib/leadUpdate";
@@ -12,8 +13,15 @@ const MAX_PER_HOUR = 30;
 
 // Quem preenche o formulário público entra na campanha, com origem e consentimento registrados. O sistema não
 // confirma se a pessoa já estava na base (a resposta é sempre "recebido"), para o formulário não revelar quem é contato.
-export async function submitCapture(slug: string, _prev: CaptureState, form: FormData): Promise<CaptureState> {
+export async function submitCapture(slug: string, prev: CaptureState, form: FormData): Promise<CaptureState> {
   if (!isCaptureSlug(slug)) return { error: "Link inválido." };
+  // Página pública: o cliente vem do formulário (o código da campanha é global), e o resto roda no contexto dele.
+  const owner = await prismaSystem.campaign.findFirst({ where: { captureSlug: slug, client: { status: "ACTIVE" } }, select: { clientId: true } });
+  if (!owner) return { error: "Este formulário não está recebendo respostas agora." };
+  return runAsClient(owner.clientId, () => submitCaptureOf(slug, prev, form));
+}
+
+async function submitCaptureOf(slug: string, _prev: CaptureState, form: FormData): Promise<CaptureState> {
   const campaign = await prisma.campaign.findFirst({
     where: { captureSlug: slug, captureOn: true, status: "ACTIVE" },
     select: { id: true, name: true, captureTitle: true, captureChannel: true, maxLeads: true },

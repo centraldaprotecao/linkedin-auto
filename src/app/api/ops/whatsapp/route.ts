@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { opsAuthorized } from "@/lib/ops";
+import { opsAuthorized, opsRun } from "@/lib/ops";
 import { deskcommConfigOf, fixedDeskcommUrl, inspectDeskcomm, saveDeskcommConnection, whatsappLiveStatus } from "@/lib/deskcomm";
 
 const SELECT = { deskcommUrl: true, deskcommToken: true, deskcommChannelId: true } as const;
 const unauthorized = () => NextResponse.json({ error: "Não autorizado." }, { status: 401 });
 
 // Estado da conexão com o CRM de WhatsApp: se há chave e se o número está conectado.
-export async function GET(request: Request) {
+export const GET = (request: Request) => opsRun(request, () => handleGET(request));
+async function handleGET(request: Request) {
   if (!opsAuthorized(request)) return unauthorized();
   const s = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" }, select: SELECT });
   const cfg = deskcommConfigOf(s);
@@ -15,12 +16,14 @@ export async function GET(request: Request) {
 }
 
 // Testa a chave no CRM e guarda cifrada com o segredo deste sistema: a central nunca precisa dele.
-export async function PUT(request: Request) {
+export const PUT = (request: Request) => opsRun(request, () => handlePUT(request));
+async function handlePUT(request: Request) {
   if (!opsAuthorized(request)) return unauthorized();
   const body = (await request.json().catch(() => null)) as { token?: string } | null;
   const token = String(body?.token ?? "").trim();
   if (!token) return NextResponse.json({ error: "Cole a chave." }, { status: 400 });
   const url = fixedDeskcommUrl();
+  if (!url) return NextResponse.json({ error: "DESKCOMM_URL não está configurado neste servidor." }, { status: 500 });
   try {
     const found = await inspectDeskcomm({ url, token });
     if (found.missingTools.length) return NextResponse.json({ error: "A chave não tem todas as permissões (precisa de mcp:read, mcp:write e role:manager)." }, { status: 400 });
@@ -32,7 +35,8 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export const DELETE = (request: Request) => opsRun(request, () => handleDELETE(request));
+async function handleDELETE(request: Request) {
   if (!opsAuthorized(request)) return unauthorized();
   await prisma.settings.update({ where: { id: "singleton" }, data: { deskcommUrl: null, deskcommToken: null, deskcommChannelId: null } });
   return NextResponse.json({ removed: true });

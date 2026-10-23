@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { currentClientId } from "@/lib/tenant";
 import { open, seal } from "@/lib/secretBox";
 
 // "Entrar com Google": o corretor autoriza o sistema a ver a agenda dele e a enviar os
@@ -76,7 +77,7 @@ export async function connectGoogle(code: string, redirectUri: string): Promise<
       googleCalendarEnabled: (tokens.scope ?? "").split(" ").includes(CALENDAR_SCOPE),
     },
   });
-  cached = null;
+  cachedByClient.delete(await currentClientId());
   return profile.email;
 }
 
@@ -95,19 +96,23 @@ export async function disconnectGoogle() {
     await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(open(s.googleRefreshToken))}`, { method: "POST" }).catch(() => {});
   }
   await prisma.settings.update({ where: { id: "singleton" }, data: { googleEmail: null, googleRefreshToken: null, googleHistoryId: null, googleCalendarEnabled: false } });
-  cached = null;
+  cachedByClient.delete(await currentClientId());
 }
 
-let cached: { token: string; expires: number } | null = null;
+// Um por cliente: o acesso de um nunca pode servir a outro.
+const cachedByClient = new Map<string, { token: string; expires: number }>();
 
 export async function googleAccessToken(): Promise<string> {
+  const clientId = await currentClientId();
+  const cached = cachedByClient.get(clientId);
   if (cached && cached.expires > Date.now() + 60_000) return cached.token;
   const s = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" }, select: { googleRefreshToken: true } });
   if (!s.googleRefreshToken) throw new Error("E-mail do Google não conectado.");
   try {
     const t = await tokenRequest({ refresh_token: open(s.googleRefreshToken), grant_type: "refresh_token" });
-    cached = { token: t.access_token!, expires: Date.now() + (t.expires_in ?? 3600) * 1000 };
-    return cached.token;
+    const fresh = { token: t.access_token!, expires: Date.now() + (t.expires_in ?? 3600) * 1000 };
+    cachedByClient.set(clientId, fresh);
+    return fresh.token;
   } catch (err) {
     // invalid_grant: o corretor revogou o acesso ou trocou a senha — precisa reconectar.
     if ((err as { code?: string }).code === "invalid_grant") {

@@ -3,16 +3,14 @@
 import { useActionState } from "react";
 import { login } from "./actions";
 
-export function LoginForm({ individual }: { individual: boolean }) {
+export function LoginForm() {
   const [state, formAction, pending] = useActionState(login, undefined);
 
   return (
     <main className="solo">
       <form action={formAction} className="solo-form">
         <h1 className="t-title">Entrar</h1>
-        {individual && (
-          <input className="field" type="text" name="login" placeholder="Seu login (ex.: maria)" aria-label="Login" autoComplete="username" autoCapitalize="none" autoCorrect="off" autoFocus required />
-        )}
+        <input className="field" type="text" name="login" placeholder="Seu login (ex.: maria)" aria-label="Login" autoComplete="username" autoCapitalize="none" autoCorrect="off" autoFocus required />
         <input
           className="field"
           type="password"
@@ -20,7 +18,6 @@ export function LoginForm({ individual }: { individual: boolean }) {
           placeholder="Senha"
           aria-label="Senha"
           autoComplete="current-password"
-          autoFocus={!individual}
           required
           aria-invalid={state?.error ? true : undefined}
         />

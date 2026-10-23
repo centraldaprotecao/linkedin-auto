@@ -39,7 +39,7 @@ async function saveEmails(all: (IncomingEmail & { mailbox?: MailboxEmail["mailbo
   for (const e of emails) {
     const lead = byEmail.get(e.from);
     if (!lead) continue;
-    const exists = await prisma.message.findUnique({ where: { emailMessageId: e.messageId }, select: { id: true } });
+    const exists = await prisma.message.findFirst({ where: { emailMessageId: e.messageId }, select: { id: true } });
     if (exists) continue;
     if (!e.text) {
       // Só anexo/imagem, sem texto: a IA não tem o que ler.

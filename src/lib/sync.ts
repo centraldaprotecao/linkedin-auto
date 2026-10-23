@@ -115,7 +115,7 @@ export async function saveNewMessages(lead: Lead, messages: SyncedMessage[]): Pr
 export async function syncConversation(conv: EdgesConversation, identityId: string): Promise<ConversationSyncResult> {
   let lead = await syncLeadFromConversation(conv);
 
-  const lastKnown = await prisma.message.findUnique({ where: { linkedinMessageId: conv.last_message.message_id } });
+  const lastKnown = await prisma.message.findFirst({ where: { linkedinMessageId: conv.last_message.message_id } });
   if (lastKnown) return { lead, saved: [], shouldRespond: false, usedFallback: false };
 
   let messages: SyncedMessage[];

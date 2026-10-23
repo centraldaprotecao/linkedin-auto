@@ -42,7 +42,7 @@ export async function syncWhatsapp(only?: string): Promise<{ checked: number; sa
     for (const m of u.messages) {
       // Mensagem nossa que o WhatsApp recusou (ex.: número em modo de teste) NÃO saiu: não pode virar "você enviou".
       if (m.direction !== "inbound" && m.status === "failed") continue;
-      const exists = await prisma.message.findUnique({ where: { whatsappMessageId: m.id }, select: { id: true } });
+      const exists = await prisma.message.findFirst({ where: { whatsappMessageId: m.id }, select: { id: true } });
       if (exists) continue;
       const at = m.sent_at ? new Date(m.sent_at) : new Date();
       // Mensagens antigas (antes da última leitura) já foram vistas.

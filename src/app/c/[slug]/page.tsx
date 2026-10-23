@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prismaSystem } from "@/lib/prisma";
 import { formToken, isCaptureSlug } from "@/lib/capture";
 import { CaptureForm } from "./CaptureForm";
 
@@ -11,12 +11,13 @@ export const metadata: Metadata = { title: "Fale com a gente", robots: { index: 
 export default async function CapturePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   if (!isCaptureSlug(slug)) notFound();
-  const campaign = await prisma.campaign.findFirst({
-    where: { captureSlug: slug, captureOn: true, status: "ACTIVE" },
-    select: { name: true, captureTitle: true, captureText: true },
+  // Página pública: não há sessão, então o cliente vem da própria campanha (o código dela é global).
+  const campaign = await prismaSystem.campaign.findFirst({
+    where: { captureSlug: slug, captureOn: true, status: "ACTIVE", client: { status: "ACTIVE" } },
+    select: { name: true, captureTitle: true, captureText: true, clientId: true },
   });
   if (!campaign) notFound();
-  const settings = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" }, select: { ownerName: true } });
+  const settings = await prismaSystem.settings.findUniqueOrThrow({ where: { clientId: campaign.clientId }, select: { ownerName: true } });
   const owner = settings.ownerName?.trim() || "nossa equipe";
   const title = campaign.captureTitle || campaign.name;
 

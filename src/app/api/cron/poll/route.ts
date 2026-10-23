@@ -6,7 +6,8 @@ import { isValidBearer } from "@/lib/auth";
 import { syncConversation } from "@/lib/sync";
 import { runProactive } from "@/lib/followup";
 import { isWithinWorkHours } from "@/lib/schedule";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaSystem } from "@/lib/prisma";
+import { runAsClient } from "@/lib/tenant";
 import { syncEmailInbox } from "@/lib/emailSync";
 import { syncWhatsapp } from "@/lib/whatsappSync";
 import { deskcommConfigOf } from "@/lib/deskcomm";
@@ -22,11 +23,27 @@ export const maxDuration = 120;
 //    novidade) e, quando a última mensagem é do lead, aciona o agente de IA.
 // 2. Proativo: detecta convites aceitos, manda a mensagem de abertura e os
 //    follow-ups de quem parou de responder.
+// Multi-cliente: o robô percorre os clientes ativos, um de cada vez, cada um no próprio contexto de dados.
+// Um cliente com problema não pode parar os outros. ?client=<id> roda só um (teste e ensaio).
 export async function GET(request: Request) {
   if (!isValidBearer(request.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const only = new URL(request.url).searchParams.get("client");
+  const clients = await prismaSystem.client.findMany({ where: { status: "ACTIVE", ...(only ? { id: only } : {}) }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } });
+  const results: Record<string, unknown> = {};
+  for (const c of clients) {
+    try {
+      results[c.id] = await runAsClient(c.id, pollClient);
+    } catch (err) {
+      console.error(`[poll] Falha no cliente ${c.name} (${c.id})`, err);
+      results[c.id] = { error: err instanceof Error ? err.message : "erro desconhecido" };
+    }
+  }
+  return NextResponse.json({ clients: clients.length, results });
+}
 
+async function pollClient() {
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" } });
   // Registra que o agendador chamou (a central local usa isto para saber se o robô parou).
   await prisma.settings.update({ where: { id: "singleton" }, data: { lastRobotRunAt: new Date() } }).catch((err) => console.error("Falha ao registrar a rodada do robô", err));

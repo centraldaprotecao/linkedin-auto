@@ -13,6 +13,7 @@ import { sendAudioMessage } from "@/lib/voice/send";
 import { campaignReviewNote } from "@/lib/campaignReview";
 import { notifyTeam } from "@/lib/team";
 import { effectiveLimits, messagesSentToday, whatsappSentToday, type Db } from "@/lib/limits";
+import { currentClientId } from "@/lib/tenant";
 import { emailLeftToday } from "@/lib/mailboxes";
 
 // Modo piloto: um lugar só onde a secretária "manda uma mensagem". Com a
@@ -195,7 +196,7 @@ async function overDailyLimit(draft: Draft, db: Db): Promise<boolean> {
 // dois envios simultâneos não usam a mesma última vaga, e o mesmo rascunho nunca é pego duas vezes.
 async function claimForSending(draft: Draft): Promise<"ok" | "taken" | "limit"> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(73001)`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(73001, hashtext(${await currentClientId()}))`;
     if (await overDailyLimit(draft, tx)) return "limit" as const;
     const claimed = await tx.draft.updateMany({ where: { id: draft.id, status: "APPROVED" }, data: { status: "SENDING", decidedAt: new Date() } });
     return claimed.count === 0 ? ("taken" as const) : ("ok" as const);

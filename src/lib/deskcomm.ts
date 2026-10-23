@@ -19,26 +19,20 @@ export interface DeskcommConfig {
   channelId: string | null;
 }
 
-// Endereço do CRM de WhatsApp: um só para todos os clientes (cada um é uma organização lá),
-// então vem de uma constante; DESKCOMM_URL só existe para trocar de servidor sem mexer no código.
-export const DEFAULT_DESKCOMM_URL = "https://crm.lucasprestes.com";
-export function fixedDeskcommUrl(): string {
+// Endereço do CRM de WhatsApp: um só para todos os clientes (cada um é uma organização lá), definido por DESKCOMM_URL.
+export function fixedDeskcommUrl(): string | null {
   const raw = process.env.DESKCOMM_URL?.trim();
-  return (raw ? normalizeDeskcommUrl(raw) : null) ?? DEFAULT_DESKCOMM_URL;
+  return raw ? normalizeDeskcommUrl(raw) : null;
 }
 
-// A chave de acesso de cada cliente fica cifrada no banco dele e é posta pela central, sem passar
-// pela Vercel. DESKCOMM_TOKEN continua valendo, só como atalho que vence a do banco.
-export function fixedDeskcommToken(): string | null {
-  return process.env.DESKCOMM_TOKEN?.trim() || null;
-}
+// A chave de acesso de cada cliente fica cifrada no banco dele (posta pelo backoffice). Não existe chave única no
+// ambiente: com vários clientes ela serviria a mesma organização do CRM para todos.
 
 export function deskcommConfigOf(s: Pick<Settings, "deskcommUrl" | "deskcommToken" | "deskcommChannelId">): DeskcommConfig | null {
   const url = fixedDeskcommUrl() ?? s.deskcommUrl;
-  const fixedToken = fixedDeskcommToken();
-  if (!url || (!fixedToken && !s.deskcommToken)) return null;
+  if (!url || !s.deskcommToken) return null;
   try {
-    return { url, token: fixedToken ?? open(s.deskcommToken!), channelId: s.deskcommChannelId };
+    return { url, token: open(s.deskcommToken), channelId: s.deskcommChannelId };
   } catch {
     return null;
   }

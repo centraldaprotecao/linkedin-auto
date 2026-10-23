@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaSystem } from "@/lib/prisma";
+import { runAsClient } from "@/lib/tenant";
 import { secretMatches } from "@/lib/auth";
 import { findLeadByProfileUrl } from "@/lib/leads";
 import { normalizeLinkedinUrl } from "@/lib/linkedin";
@@ -26,17 +27,36 @@ export async function POST(request: Request) {
 
   const payload = await request.json();
 
+  // Um só webhook da edges.run atende todos os clientes: o dono vem da identidade (avisos da integração) ou do
+  // endereço de retorno que enviamos junto com o pedido (?client=, convites).
   if (payload.event_type === "integration") {
-    await handleIntegrationEvent(payload);
+    const identityId = identityOf(payload);
+    const owner = identityId ? await prismaSystem.settings.findFirst({ where: { linkedinIdentityId: identityId }, select: { clientId: true } }) : null;
+    if (!owner) {
+      console.warn(`[edges-webhook] aviso da integração sem cliente conhecido (identidade ${identityId ? "desconhecida" : "ausente no aviso"}): ignorado`);
+      return NextResponse.json({ ok: true, ignored: true });
+    }
+    await runAsClient(owner.clientId, () => handleIntegrationEvent(payload));
     return NextResponse.json({ ok: true });
   }
 
   if (payload.run) {
-    await handleConnectCallback(payload);
+    const clientId = new URL(request.url).searchParams.get("client");
+    const owner = clientId ? await prismaSystem.client.findFirst({ where: { id: clientId, status: "ACTIVE" }, select: { id: true } }) : null;
+    if (!owner) return NextResponse.json({ ok: true, ignored: true });
+    await runAsClient(owner.id, () => handleConnectCallback(payload));
     return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ ok: true, ignored: true });
+}
+
+// Identidade do LinkedIn a que o aviso se refere. O formato exato do aviso precisa ser conferido no ensaio com uma conta real.
+function identityOf(payload: Record<string, unknown>): string | null {
+  const data = (payload.data ?? {}) as Record<string, unknown>;
+  const identity = (data.identity ?? payload.identity ?? {}) as Record<string, unknown>;
+  const v = data.identity_id ?? payload.identity_id ?? identity.id ?? data.integration_id ?? payload.integration_id;
+  return typeof v === "string" && v ? v : null;
 }
 
 async function handleIntegrationEvent(payload: {

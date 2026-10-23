@@ -64,8 +64,8 @@ export type EmailConnection = { provider: "google"; address: string } | { provid
 export async function emailConnection(): Promise<EmailConnection | null> {
   const s = await prisma.settings.findUnique({ where: { id: "singleton" }, select: { googleEmail: true, googleRefreshToken: true } });
   if (s?.googleEmail && s.googleRefreshToken) return { provider: "google", address: s.googleEmail };
-  const cfg = passwordConfig();
-  return cfg ? { provider: "password", address: cfg.address, cfg } : null;
+  // Sem plano B por variáveis de ambiente: com vários clientes ele serviria a mesma caixa para todos.
+  return null;
 }
 
 // E-mail de prospecção disponível: só com caixa de envio ativa. A conta Google do corretor (agenda e avisos)
@@ -78,11 +78,6 @@ export async function emailEnabled(): Promise<boolean> {
 // nunca pelas caixas de prospecção.
 export async function internalEmailEnabled(): Promise<boolean> {
   return (await emailConnection()) !== null;
-}
-
-// Senha de app configurada no ambiente (plano B, aparece só no admin).
-export function passwordEmailAddress(): string | null {
-  return passwordConfig()?.address ?? null;
 }
 
 export function smtpTransport(cfg: PasswordConfig) {

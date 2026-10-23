@@ -1,4 +1,5 @@
-import type { Prisma, PrismaClient, Settings } from "@prisma/client";
+import type { Settings } from "@prisma/client";
+import type { Db } from "@/lib/prisma";
 import { prisma } from "@/lib/prisma";
 import { startOfDaySP } from "@/lib/mailboxPolicy";
 
@@ -30,7 +31,7 @@ export function effectiveLimits(settings: LimitSettings): DailyLimits {
 // diário de mensagens, que protege a conta do LinkedIn.
 // Dentro de uma transação, passe o cliente dela (db): consultar pelo cliente global pede OUTRA conexão e,
 // com várias transações juntas, esgota o pool do banco.
-export type Db = PrismaClient | Prisma.TransactionClient;
+export type { Db };
 
 export async function messagesSentToday(db: Db = prisma): Promise<number> {
   return db.message.count({

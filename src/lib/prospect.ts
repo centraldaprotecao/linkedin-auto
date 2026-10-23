@@ -5,6 +5,7 @@ import { linkedinProfileSlug, normalizeLinkedinUrl } from "@/lib/linkedin";
 import { isExcluded, loadExclusionRules } from "@/lib/exclusion";
 import { warmUpProfiles } from "@/lib/engagement";
 import { effectiveLimits, type Db } from "@/lib/limits";
+import { currentClientId } from "@/lib/tenant";
 import { startOfDaySP } from "@/lib/mailboxPolicy";
 
 // Descoberta fria fica fora da edges.run: buscar perfil novo custa crédito lá
@@ -84,7 +85,7 @@ export async function inviteProspects(
   // Escolhe quem entra e reserva as vagas numa tacada só, com trava no banco: dois lotes ao mesmo tempo
   // não enxergam a mesma vaga, e o mesmo perfil não é pedido duas vezes enquanto o retorno não chega.
   const { toInvite, skippedForLimit } = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(73002)`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(73002, hashtext(${await currentClientId()}))`;
 
     // Campanha pausada/finalizada não recebe gente nova; limite de pessoas da
     // campanha (se houver) corta o excedente.
@@ -132,7 +133,7 @@ export async function inviteProspects(
         icp_score: c.icpScore,
         campaign_id: c.campaignId,
       })),
-      `${appUrl}/api/webhooks/edges`,
+      `${appUrl}/api/webhooks/edges?client=${encodeURIComponent(await currentClientId())}`, // o retorno diz de qual cliente é
     );
   } catch (err) {
     // Não saiu nada: devolve as vagas reservadas.

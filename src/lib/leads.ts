@@ -33,7 +33,7 @@ export async function syncLeadFromConversation(conv: EdgesConversation): Promise
     jobTitle: conv.job_title,
   };
 
-  const byThread = await prisma.lead.findUnique({ where: { linkedinThreadId: conv.linkedin_thread_id } });
+  const byThread = await prisma.lead.findFirst({ where: { linkedinThreadId: conv.linkedin_thread_id } });
   if (byThread) {
     return prisma.lead.update({ where: { id: byThread.id }, data: profile });
   }

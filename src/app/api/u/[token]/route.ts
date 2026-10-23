@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prismaSystem as prisma } from "@/lib/prisma"; // rota pública: o código assinado da pessoa é a prova
 import { leadIdFromUnsubscribeToken } from "@/lib/unsubscribe";
 
 // "Não quero mais receber": link do rodapé dos e-mails. Público (quem clica não tem login), por isso só

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prismaSystem as prisma } from "@/lib/prisma"; // rota pública: o código aleatório da mensagem é a prova
 import { isAutoOpen } from "@/lib/openTracking";
 
 // Imagem invisível dos e-mails enviados: cada vez que carrega, conta uma

@@ -7,7 +7,7 @@ import { recipients } from "../src/lib/team";
 const m = (id: string, extra: Partial<TeamMember> = {}): TeamMember => ({
   id, name: id, email: `${id}@x.com`, phone: null, whatsappConversationId: null,
   notifyUrgent: false, notifyMeetings: false, notifyHandoffs: false,
-  role: null, handles: [], viaEmail: true, viaWhatsapp: true, createdAt: new Date(), ...extra,
+  role: null, handles: [], viaEmail: true, viaWhatsapp: true, createdAt: new Date(), clientId: "c", ...extra,
 });
 const team = [
   m("daniel", { notifyUrgent: true, handles: ["BUSINESS", "PARTNER"] }),

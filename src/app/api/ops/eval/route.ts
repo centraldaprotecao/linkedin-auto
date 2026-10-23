@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { opsAuthorized } from "@/lib/ops";
+import { opsAuthorized, opsRun } from "@/lib/ops";
 import { conversationModel } from "@/lib/agent";
 import { listNousModels, runScenario } from "@/lib/agentEval/run";
 import { QUICK_IDS, SCENARIOS } from "@/lib/agentEval/scenarios";
@@ -9,7 +9,8 @@ import { loadFeedbackScenarios } from "@/lib/agentEval/feedbackCases";
 export const maxDuration = 120;
 
 // O que a central precisa para montar o banco de testes: modelos, cenários e o modelo atual.
-export async function GET(request: Request) {
+export const GET = (request: Request) => opsRun(request, () => handleGET(request));
+async function handleGET(request: Request) {
   if (!opsAuthorized(request)) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   const current = await conversationModel();
   // As correções do corretor ("não é meu jeito") entram na lista como casos de teste.
@@ -22,7 +23,8 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = (request: Request) => opsRun(request, () => handlePOST(request));
+async function handlePOST(request: Request) {
   if (!opsAuthorized(request)) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   const body = (await request.json().catch(() => null)) as { scenarioId?: string; model?: string; judgeModel?: string | null } | null;
   if (!body?.scenarioId || !body.model) return NextResponse.json({ error: "Parâmetros inválidos." }, { status: 400 });

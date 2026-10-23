@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prismaSystem as prisma } from "@/lib/prisma"; // rota pública: o código do material é a prova
 import { isMaterialToken, mimeInline } from "@/lib/materials";
 
 // Endereço público de um material (o que o corretor manda ao cliente). O código é impossível de adivinhar;

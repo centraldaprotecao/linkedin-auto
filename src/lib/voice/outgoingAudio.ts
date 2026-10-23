@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaSystem } from "@/lib/prisma";
 
 // Áudio gerado pra mandar por WhatsApp. O Deskcomm baixa o arquivo por um endereço público
 // (/api/audio/<código>): o código é longo e impossível de adivinhar, e o arquivo some em 24 horas.
@@ -30,7 +30,8 @@ export async function storeOutgoingAudio(bytes: Buffer, mime: string, opts: { dr
 
 export async function loadOutgoingAudio(id: string): Promise<{ bytes: Buffer; mime: string } | null> {
   if (!/^[\w-]{20,64}$/.test(id)) return null;
-  const row = await prisma.outgoingAudio.findUnique({ where: { id } });
+  // Rota pública: o código impossível de adivinhar é a prova; ainda não há cliente no contexto.
+  const row = await prismaSystem.outgoingAudio.findUnique({ where: { id } });
   if (!row || row.expiresAt < new Date()) return null;
   return { bytes: Buffer.from(row.bytes), mime: row.mime };
 }

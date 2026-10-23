@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { userBlockedByPlan } from "@/lib/plan";
 import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaSystem } from "@/lib/prisma";
 import { getSession, requireSession } from "@/lib/session";
 import { OWNER_LOGINS, createInviteToken, normalizeLogin } from "@/lib/panelUsers";
 
@@ -21,7 +21,7 @@ export async function addPanelUser(data: { name: string; login: string }): Promi
   if (!name) return { error: "Informe o nome da pessoa." };
   const login = normalizeLogin(data.login || name.split(/\s+/)[0]);
   if (login.length < 2 || login.length > 40) return { error: "O login precisa ter de 2 a 40 letras ou números." };
-  if (OWNER_LOGINS.includes(login) || (await prisma.panelUser.findUnique({ where: { login }, select: { id: true } }))) {
+  if (OWNER_LOGINS.includes(login) || (await prismaSystem.panelUser.findUnique({ where: { login }, select: { id: true } }))) {
     return { error: `O login "${login}" já está em uso. Escolha outro.` };
   }
   const blocked = await userBlockedByPlan();

@@ -1,26 +1,19 @@
 import { cookies } from "next/headers";
-import { COOKIE_NAME, isValidSessionToken, parseUserToken } from "@/lib/auth";
+import { COOKIE_NAME, parseUserToken } from "@/lib/auth";
 import { fingerprint } from "@/lib/panelUsers";
-import { prisma } from "@/lib/prisma";
+import { prismaSystem } from "@/lib/prisma";
 
-export type Session = { kind: "legacy" } | { kind: "user"; user: { id: string; name: string; login: string } };
+export type Session = { kind: "user"; clientId: string; user: { id: string; name: string; login: string } };
 
-// Já existe alguém com senha própria? Daí em diante a senha única deixa de valer.
-export async function hasIndividualAccess(): Promise<boolean> {
-  return (await prisma.panelUser.count({ where: { passwordHash: { not: null } } })) > 0;
-}
-
-// Quem está logado, conferido no banco: pessoa desativada ou com senha trocada perde a sessão.
+// Quem está logado, conferido no banco: pessoa desativada, com senha trocada ou de cliente pausado perde a sessão.
+// Usa o banco sem filtro porque é aqui que o cliente é confirmado (o cookie só traz o que a pessoa diz ser).
 export async function getSession(): Promise<Session | null> {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
-  if (!isValidSessionToken(token)) return null;
   const parsed = parseUserToken(token);
-  if (parsed) {
-    const user = await prisma.panelUser.findUnique({ where: { id: parsed.id } });
-    if (!user || !user.active || fingerprint(user.passwordHash) !== parsed.fp) return null;
-    return { kind: "user", user: { id: user.id, name: user.name, login: user.login } };
-  }
-  return (await hasIndividualAccess()) ? null : { kind: "legacy" };
+  if (!parsed) return null;
+  const user = await prismaSystem.panelUser.findUnique({ where: { id: parsed.id }, include: { client: { select: { status: true } } } });
+  if (!user || !user.active || user.clientId !== parsed.cid || user.client.status !== "ACTIVE" || fingerprint(user.passwordHash) !== parsed.fp) return null;
+  return { kind: "user", clientId: user.clientId, user: { id: user.id, name: user.name, login: user.login } };
 }
 
 // As ações de servidor aceitam POST direto (não só pela tela). O proxy.ts já barra quem não
