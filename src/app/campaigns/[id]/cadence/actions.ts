@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { MessageChannel } from "@prisma/client";
+import { ownsCampaign } from "@/lib/ownership";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
@@ -33,6 +34,7 @@ export async function saveCadence(campaignId: string, initial: string, steps: St
     previous = st.day;
   }
 
+  if (!(await ownsCampaign(campaignId))) return { error: "Campanha não encontrada." };
   await prisma.$transaction([
     prisma.campaignStep.deleteMany({ where: { campaignId } }),
     prisma.campaignStep.createMany({

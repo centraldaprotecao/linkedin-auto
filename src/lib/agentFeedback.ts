@@ -1,3 +1,4 @@
+import { ownsLead } from "@/lib/ownership";
 import { prisma } from "@/lib/prisma";
 import { REASON_KEYS } from "@/lib/writingStyle";
 
@@ -35,7 +36,9 @@ export async function recordFeedback(input: FeedbackInput): Promise<{ error?: st
   if (reasons.length === 0 && !note) return { error: "Escolha um motivo ou escreva o que não ficou bom." };
 
   const draft = input.draftId ? await prisma.draft.findUnique({ where: { id: input.draftId }, select: { leadId: true, content: true, originalContent: true } }) : null;
+  if (input.draftId && !draft) return { error: "Mensagem não encontrada." };
   const leadId = draft?.leadId ?? input.leadId ?? null;
+  if (leadId && !(await ownsLead(leadId))) return { error: "Contato não encontrado." };
 
   let context: { sender: string; channel: string; content: string }[] | undefined;
   if (leadId) {

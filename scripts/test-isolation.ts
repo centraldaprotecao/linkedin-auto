@@ -72,6 +72,14 @@ async function main() {
     const fake = await as(B, () => prisma.campaign.create({ data: { name: "c", clientId: A.id } as never }));
     assert.equal(fake.clientId, B.id, "dono vem do contexto, não do dado enviado");
 
+    // Ids vindos do navegador e gravados como campo (leadId, campaignId): a conferência de dono recusa id de outro cliente.
+    const { ownsLead, ownsCampaign } = await import("../src/lib/ownership");
+    const campA = await as(A, () => prisma.campaign.create({ data: { name: "camp de A" } }));
+    assert.equal(await as(A, () => ownsLead(leadA.id)), true);
+    assert.equal(await as(B, () => ownsLead(leadA.id)), false, "lead de A não pode ser usado por B");
+    assert.equal(await as(A, () => ownsCampaign(campA.id)), true);
+    assert.equal(await as(B, () => ownsCampaign(campA.id)), false, "campanha de A não pode ser usada por B");
+
     // Transação interativa também é filtrada.
     const inTx = await as(A, () => prisma.$transaction(async (tx) => tx.lead.count()));
     assert.equal(inTx, 1);

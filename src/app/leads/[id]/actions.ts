@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { ownsCampaign, ownsLead } from "@/lib/ownership";
 import { prisma } from "@/lib/prisma";
 import { activeIdentityIdOrNull } from "@/lib/identity";
 import { sendOnChannel } from "@/lib/channels";
@@ -80,6 +81,7 @@ export async function updateLeadTags(leadId: string, tags: string[]) {
 
 export async function updateLeadCampaign(leadId: string, campaignId: string | null) {
   await requireSession();
+  if (campaignId && !(await ownsCampaign(campaignId))) return { error: "Campanha não encontrada." };
   await prisma.lead.update({ where: { id: leadId }, data: { campaignId } });
   revalidatePath(`/leads/${leadId}`);
   return { saved: true };
@@ -193,6 +195,7 @@ export async function addLeadTask(leadId: string, title: string, due: string) {
   if (!t) return { error: "Escreva o que lembrar." };
   const day = due ? validDue(due, todaySP()) : null;
   if (due && !day) return { error: "Data inválida. Use uma data de hoje em diante." };
+  if (!(await ownsLead(leadId))) return { error: "Contato não encontrado." };
   await prisma.leadTask.create({ data: { leadId, title: t, dueAt: day ? dueDate(day) : null } });
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/");
