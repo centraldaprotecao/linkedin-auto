@@ -80,3 +80,4 @@ Acompanhar 7 dias · desligar o que era do Lucas (Vercel, Neon, cron-job.org, VP
 - 2026-10-22 — Replanejado: entrega para a DOR$ com infraestrutura própria. Revoga DEC-03.
 - 2026-10-23 — Replanejado: a DOR$ terá clientes próprios (Fase M, backoffice separado).
 - 2026-10-23 — Replanejado: Vercel + Supabase único (Neon fora); VPS só para o Deskcomm; sem migração de dados porque não há dado real; conteúdo de configuração aproveitado. Fases 2 e 3 simplificadas.
+- 2026-11-15 — Repos transferidos para centraldaprotecao; Supabase central-dors (sa-east-1) criado; papéis do banco (sistema, painel, deskcomm) e 35 migrações aplicadas no esquema central; isolamento conferido (deskcomm sem acesso a central/backoffice, RLS em 22/22 tabelas, anon sem grants). Senhas em entrega/segredo-dors.env.txt (fora do git). Falta: Vercel, domínio, conteúdo, ensaio.
