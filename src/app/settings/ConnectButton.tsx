@@ -12,11 +12,12 @@ export function ConnectButton() {
     setError(null);
     startTransition(async () => {
       try {
-        const link = await getOrCreateIdentityLoginLink(fresh);
+        const res = await getOrCreateIdentityLoginLink(fresh);
+        if ("error" in res) return setError(res.error);
         setOpened(true);
-        window.open(link, "_blank", "noopener,noreferrer");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Não foi possível gerar o link de conexão.");
+        window.open(res.link, "_blank", "noopener,noreferrer");
+      } catch {
+        setError("Não foi possível gerar o link de conexão. Tente de novo em instantes.");
       }
     });
   }

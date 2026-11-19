@@ -17,7 +17,7 @@ const LOGIN_LINK_REUSE_MS = 12 * 60 * 60 * 1000;
 // identidade, e cada identidade criada entra na cobrança do mês. Por isso:
 // enquanto a identidade pendente existir e o link for recente, devolve o
 // MESMO link; só cria outra se o link expirou ou se pediram um novo (fresh).
-export async function getOrCreateIdentityLoginLink(fresh = false): Promise<string> {
+async function loginLink(fresh: boolean): Promise<string> {
   await requireSession();
   const settings = await prisma.settings.findUniqueOrThrow({ where: { id: "singleton" } });
 
@@ -48,6 +48,17 @@ export async function getOrCreateIdentityLoginLink(fresh = false): Promise<strin
   revalidatePath("/assistente");
   revalidatePath("/channels");
   return link;
+}
+
+// Em produção o Next esconde a mensagem de erros lançados por ação de servidor ("Minified React error"),
+// por isso o erro volta como valor e a tela mostra o texto verdadeiro (ex.: o Edges pedindo cartão/país).
+export async function getOrCreateIdentityLoginLink(fresh = false): Promise<{ link: string } | { error: string }> {
+  try {
+    return { link: await loginLink(fresh) };
+  } catch (err) {
+    console.error("getOrCreateIdentityLoginLink", err);
+    return { error: err instanceof Error ? err.message : "Não foi possível gerar o link de conexão." };
+  }
 }
 
 export async function updateTargetAudience(_prevState: unknown, formData: FormData) {
